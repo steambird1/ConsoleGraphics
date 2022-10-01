@@ -124,6 +124,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="scg-console.h" />
+    <ClInclude Include="scg-controls.h" />
     <ClInclude Include="scg-graph.h" />
     <ClInclude Include="scg-settings.h" />
     <ClInclude Include="scg-utility.h" />

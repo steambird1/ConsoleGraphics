@@ -14,3 +14,4 @@ Mustn't use iostream in this library.
 
 #include "scg-console.h"
 #include "scg-graph.h"
+#include "scg-controls.h"

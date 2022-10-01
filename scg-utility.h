@@ -10,6 +10,8 @@ namespace scg {
 	using console_pos = unsigned int;
 	using console_size = unsigned int;
 	using array_size = unsigned int;
+	using key_id = int;
+	using symboller = unsigned long long;
 	using win_handle = HANDLE;
 	using win_uint = DWORD;
 	using win_bool = BOOL;
@@ -107,7 +109,7 @@ namespace scg {
 
 	public:
 
-		using event_symbol = unsigned long long;
+		using event_symbol = symboller;
 		using event_caller = function<void(event_arg_type)>;
 
 		event() {

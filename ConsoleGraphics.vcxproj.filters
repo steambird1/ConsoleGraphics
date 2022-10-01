@@ -30,6 +30,9 @@
     <ClInclude Include="scg-settings.h">
       <Filter>源文件</Filter>
     </ClInclude>
+    <ClInclude Include="scg-controls.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

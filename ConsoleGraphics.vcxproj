@@ -123,6 +123,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="scg-console.h" />
+    <ClInclude Include="scg-graph.h" />
+    <ClInclude Include="scg-settings.h" />
+    <ClInclude Include="scg-utility.h" />
+    <ClInclude Include="scg.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -78,6 +78,7 @@ namespace scg {
 		// Common event for all controls:
 		event<event_args> LostFocus;
 		event<event_args> GotFocus;
+		event<event_args> PreRender;	// Call at the first render
 
 		bool HasChanges = true;	// For initial loader
 		bool Enabled = true;	// true if can be selected
@@ -94,7 +95,12 @@ namespace scg {
 	public:
 		window(console_size Height, console_size Width) : mc_area(client_area(Height, Width)) {
 			mc_area.Fillup(client_area::pixel(' ', pixel_colors::Generate(text_white + text_background)));
+			// For title bar
 			// Default LostFocus Drawer
+			PreRender += [this](event_args e) {
+				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
+				HasChanges = true;
+			};
 			LostFocus += [this](event_args e) {
 				// Set window title bar to inactive state
 				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
@@ -185,6 +191,9 @@ namespace scg {
 		// Call this after all of work
 		void MainLoop() {
 			SetEscapeOutput();
+			for (auto &i : sub_controls) {
+				i.second.MyControl().PreRender.RunEvent(event_args());
+			}
 			current_active->second.MyControl().GotFocus.RunEvent(event_args());
 			GetClientArea().Draw();	// Initial drawer
 			while (true) {

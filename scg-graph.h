@@ -8,10 +8,11 @@ namespace scg {
 	class client_area {
 	public:
 
+		// 'change' must be set after output!
 		struct pixel {
 
-			pixel(char Display, int Color = 0, bool Transparent = false) : changed(true), color_info(Color), data(Display), transparent(Transparent) {
-
+			pixel(char Display = '\0', int Color = 0, bool Transparent = false) : changed(true), data(Display), transparent(Transparent) {
+				color_info = Color;
 			}
 
 			void Display() {
@@ -26,6 +27,7 @@ namespace scg {
 			char operator = (char data) {
 				this->data = data;
 				changed = true;
+				return data;
 			}
 
 			//int color_info = 0;
@@ -56,9 +58,23 @@ namespace scg {
 			for (console_pos i = StartX; i < EndX; i++) {
 				for (console_pos j = StartY; j < EndY; j++) {
 					console_pos other_i = i - StartX, other_j = j - StartY;
-					auto op = Other.data[other_i][other_j];
+					auto &op = Other.data[other_i][other_j];
 					if (!op.transparent) {
 						data[i][j] = op;
+					}
+				}
+			}
+		}
+
+		// Must move to specified place first.
+		void Draw() {
+			for (console_pos i = 0; i < SizeH; i++) {
+				for (console_pos j = 0; j < SizeW; j++) {
+					auto &op = data[i][j];
+					if ((!op.transparent) && op.changed) {
+						MoveAbsoluteCursor(coords(i, j));
+						op.Display();
+						op.changed = false;
 					}
 				}
 			}
@@ -79,6 +95,14 @@ namespace scg {
 			throw scg_exception("Cannot write this property!");
 		}
 			);
+
+		operator array_2d<pixel>&() {
+			return data;
+		}
+
+		pixel* operator [] (console_pos Line) {
+			return data[Line];
+		}
 
 		array_2d<pixel> data;
 

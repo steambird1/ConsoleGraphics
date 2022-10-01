@@ -15,6 +15,11 @@ namespace scg {
 	using win_bool = BOOL;
 
 	struct coords {
+
+		coords(console_pos x, console_pos y) : x(x), y(y) {
+
+		}
+
 		console_pos x, y;
 	};
 
@@ -66,7 +71,13 @@ namespace scg {
 		}
 
 		data_type* operator[] (array_size Pos) {
-			return ar + (Pos*Size1D);
+			return ar + (Pos*Size2D);
+		}
+
+		void FillWith(data_type Data) {
+			for (size_t i = 0; i < Size1D * Size2D; i++) {
+				ar[i] = Data;
+			}
 		}
 
 		property<array_size> Size1D = property<array_size>([](array_size &field) -> array_size {

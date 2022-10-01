@@ -20,8 +20,10 @@ namespace scg {
 		printf("%c[%d%c", escape, int(LineSize), Method);
 	}
 
+	// Specified (x,y) will be the start point
+	// x,y in [0, size)
 	void MoveAbsoluteCursor(coords pos) {
-		printf("%c[%d;%dH", escape, int(pos.y), int(pos.x));
+		printf("%c[%d;%dH", escape, int(pos.x+1), int(pos.y+1));
 	}
 
 	constexpr char display_enable = 'h';

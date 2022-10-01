@@ -4,6 +4,9 @@
 #include "scg-settings.h"
 
 namespace scg {
+
+	// Note: These functions generates color information for client_area::pixel.
+	// This function put 3 color information into 1 integer.
 	
 	class client_area {
 	public:
@@ -11,12 +14,16 @@ namespace scg {
 		// 'change' must be set after output!
 		struct pixel {
 
-			pixel(char Display = '\0', int Color = 0, bool Transparent = false) : changed(true), data(Display), transparent(Transparent) {
+			// 'Color' must from pixel_colors::Generate()
+			pixel(char Display = '\0', pixel_color Color = 0, bool Transparent = false) : changed(true), data(Display) {
 				color_info = Color;
+				transparent = Transparent;
 			}
 
 			void Display() {
-				SetTextDisplay(color_info);
+				// Before print all pixels
+				SetTextDisplay();
+				pixel_colors::Unpack(color_info);
 				putchar(data);
 			}
 
@@ -31,7 +38,7 @@ namespace scg {
 			}
 
 			//int color_info = 0;
-			property<int> color_info = property<int>(
+			property<pixel_color> color_info = property<pixel_color>(
 				[this](int &buf) -> int {
 				return buf;
 			}, [this](int set, int &buf) {
@@ -40,8 +47,17 @@ namespace scg {
 			}
 				);
 
+			property<bool> transparent = property<bool>(
+				[this](bool &buf) -> bool {
+				return buf;
+			}, [this](bool set, bool &buf) {
+				changed = true;
+				buf = set;
+			}
+			);
+
 			char data;
-			bool transparent = true;	 // Will not override previous one if do so
+			//bool transparent = true;	 // Will not override previous one if do so
 			bool changed = false;
 		};
 
@@ -68,6 +84,7 @@ namespace scg {
 
 		// Must move to specified place first.
 		void Draw() {
+			SaveCursorPos();
 			for (console_pos i = 0; i < SizeH; i++) {
 				for (console_pos j = 0; j < SizeW; j++) {
 					auto &op = data[i][j];
@@ -78,6 +95,11 @@ namespace scg {
 					}
 				}
 			}
+			RestoreCursorPos();
+		}
+
+		void Fillup(pixel PixelData) {
+			data.FillWith(PixelData);
 		}
 
 		property<console_pos> SizeH = property<console_pos>(

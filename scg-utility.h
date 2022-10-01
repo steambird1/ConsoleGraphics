@@ -16,9 +16,16 @@ namespace scg {
 	using win_uint = DWORD;
 	using win_bool = BOOL;
 
+	using pixel_color = int;
+
 	struct coords {
 
-		coords(console_pos x, console_pos y) : x(x), y(y) {
+		// e.g. coords c = nullptr; For functions' arguments.
+		coords(nullptr_t t) {
+
+		}
+
+		coords(console_pos x = 0, console_pos y = 0) : x(x), y(y) {
 
 		}
 

@@ -9,6 +9,15 @@ namespace scg {
 
 	constexpr char escape = 0x1B;
 
+	// Use these 2 things carefully!
+	void SaveCursorPos() {
+		printf("%c[7", escape);
+	}
+
+	void RestoreCursorPos() {
+		printf("%c[8", escape);
+	}
+
 	constexpr char move_up = 'A';
 	constexpr char move_down = 'B';
 	constexpr char move_right = 'C';
@@ -64,6 +73,22 @@ namespace scg {
 		printf("%c[%dm", escape, DisplayMode);
 	}
 
+	class pixel_colors {
+	public:
+		static pixel_color Generate(int FirstColor = 0, int SecondColor = 0, int ThirdColor = 0) {
+			return FirstColor | (SecondColor << 7) | (ThirdColor << 14);
+		}
+		static void Unpack(pixel_color ColorData) {
+			// Must execute First Color.
+			int ThirdColor = ColorData >> 14;
+			int SecondColor = (ColorData & 0x3fff) >> 7;
+			int FirstColor = ColorData & 0x7f;
+			if (ThirdColor != 0) SetTextDisplay(ThirdColor);
+			if (SecondColor != 0) SetTextDisplay(SecondColor);
+			SetTextDisplay(FirstColor);
+		}
+	};
+
 	// Please call this function before use anything!
 	void SetEscapeOutput() {
 		win_handle hout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -72,6 +97,10 @@ namespace scg {
 		if (!GetConsoleMode(hout, &res)) throw scg_exception("Cannot get console information");
 		res |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 		if (!SetConsoleMode(hout, res)) throw scg_exception("Cannot set console mode");
+
+		// Make the whole screen clean by:
+		system("cls");
+		system("color");
 	}
 
 };

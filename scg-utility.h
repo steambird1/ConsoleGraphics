@@ -48,9 +48,9 @@ namespace scg {
 
 		}
 
-		property<data_type, field_type> operator = (data_type TargetData) {
+		void operator = (data_type TargetData) {
 			setter(TargetData, fdata);
-			return (*this);
+			//return (*this);
 		}
 
 		operator data_type() {

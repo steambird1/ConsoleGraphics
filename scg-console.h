@@ -103,4 +103,8 @@ namespace scg {
 		system("color");
 	}
 
+	void ResetConsole() {
+		system("cls & color 07");
+	}
+
 };

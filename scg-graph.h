@@ -42,8 +42,10 @@ namespace scg {
 				[this](int &buf) -> int {
 				return buf;
 			}, [this](int set, int &buf) {
-				changed = true;
-				buf = set;
+				if (buf != set) {
+					changed = true;
+					buf = set;
+				}
 			}
 				);
 
@@ -51,8 +53,10 @@ namespace scg {
 				[this](bool &buf) -> bool {
 				return buf;
 			}, [this](bool set, bool &buf) {
-				changed = true;
-				buf = set;
+				if (buf != set) {
+					changed = true;
+					buf = set;
+				}
 			}
 			);
 
@@ -83,15 +87,15 @@ namespace scg {
 		}
 
 		// Must move to specified place first.
-		void Draw() {
+		void Draw(bool InvaildateAll = false, bool NoChanging = false) {
 			SaveCursorPos();
 			for (console_pos i = 0; i < SizeH; i++) {
 				for (console_pos j = 0; j < SizeW; j++) {
 					auto &op = data[i][j];
-					if ((!op.transparent) && op.changed) {
+					if (((!op.transparent) && op.changed) || InvaildateAll) {
 						MoveAbsoluteCursor(coords(i, j));
 						op.Display();
-						op.changed = false;
+						if (!NoChanging) op.changed = false;
 					}
 				}
 			}
@@ -132,5 +136,7 @@ namespace scg {
 		//...
 
 	};
+
+	using spixel = client_area::pixel;
 
 }

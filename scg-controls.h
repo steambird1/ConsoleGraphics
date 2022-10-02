@@ -475,15 +475,15 @@ namespace scg {
 		}, [this](bool sets, bool &buf) {
 			Enabled = sets;
 			if (sets) {
-				this->DrawBar(deactived_button);
-			}
-			else {
 				if (HaveGotFocus) {
 					this->DrawBar(actived_button);
 				}
 				else {
 					this->DrawBar(inactived_button);
 				}
+			}
+			else {
+				this->DrawBar(deactived_button);
 			}
 		});
 

@@ -35,6 +35,7 @@ int main() {
 	bb.OnClick += [&](event_args e) {
 		t.Text = "Press";
 		bc.Text = "Press me!";
+		bc.IsActived = !bc.IsActived;
 	};
 
 	c += control_set(&bb, "Button1", coords(2, 2));

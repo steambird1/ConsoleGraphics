@@ -16,9 +16,7 @@ int main() {
 	label l = label("Test", 1, 5);
 	w += control_set(&l, "LabelTest", coords(2, 2));
 	w.LostFocus += [&](event_args e) {
-		l.Text = "NO! ";
-		//l.Style = pixel_colors::Generate(text_background + text_cyan + text_intensity, text_foreground + text_white + text_intensity);
-		//m.MoveControl("1020", coords(10, 20));
+		//m.BarPrompt("Test text", );
 	};
 
 	// Add label for this example window:
@@ -39,6 +37,11 @@ int main() {
 		c.MoveControl("Button2", coords(7, 4));
 	};
 
+	bc.OnClick += [&](event_args e) {
+		auto pg = pixel_colors::Generate(text_white + text_intensity + text_foreground, text_blue + text_background);
+		m.BarPrompt(m.BarInput("Input something: ", pg), pg);
+	};
+
 	input ip = input(2, 8);
 
 	c += control_set(&bb, "Button1", coords(2, 2));
@@ -49,6 +52,5 @@ int main() {
 	m += control_set(&c, "1020", coords(4, 4));
 
 	m.MainLoop();
-
 	return 0;
 }

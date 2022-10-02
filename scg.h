@@ -12,7 +12,7 @@ The comment that included "..." means the method is incomplete.
 [ZH] 下标先行后列，x 为行，y 为列！
 请勿使用 iostream。
 */
-
+#include "scg-utility.h"
 #include "scg-console.h"
 #include "scg-graph.h"
 #include "scg-controls.h"

@@ -669,6 +669,7 @@ namespace scg {
 		}, [this](string sets, string &buf) {
 			InvalidateText();
 			buf = sets;
+			OnChange.RunEvent(event_args());
 			RedrawText();
 		});
 
@@ -685,6 +686,7 @@ namespace scg {
 			HasChanges = true;
 		});
 
+		event<event_args> OnChange;
 
 	protected:
 
@@ -695,6 +697,7 @@ namespace scg {
 			for (auto &i : TextData) {
 				if (i == '\n') {
 					CurrentX++;
+					CurrentY = 0;
 					continue;
 				}
 				if (i == '\t') {
@@ -747,6 +750,27 @@ namespace scg {
 		client_area mc_area;
 	};
 
+	class Protection {
+	public:
+		static void RaiseError(string Description) {
+			ErrorRaised = true;
+			ResetConsole();
+			SetTextDisplay();
+			MoveAbsoluteCursor(coords(0, 0));
+			system("color 1f");
+			printf("An critical error has occured and Console Graphics has been \n");
+			printf("shut down to protect your application.                      \n");
+			printf("                                                            \n");
+			printf("Technial information: Error:                                \n%s", Description.c_str());
+			while (1) {
+				this_thread::yield();
+			}
+		}
+	private:
+		static bool ErrorRaised;
+	};
+	bool Protection::ErrorRaised = false;
+
 	/*
 	This class is about master application. It should have 1 only.
 	*/
@@ -777,22 +801,59 @@ namespace scg {
 				i.second.MyControl().AfterDraw.RunEvent(event_args());
 			}
 		}
+		// Call this for prompt bar
+		void BarPrompt(string PromptText, pixel_color Style) {
+			ClearPrompt(Style);
+			console_pos ptr = 0;
+			for (auto &i : PromptText) {
+				mc_area[height-1][ptr++] = i;
+			}
+			GetClientArea().Draw();
+		}
+		void BarClean() {
+			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', 0);
+		}
+		string BarInput(string PromptText, pixel_color Style, int BufferSize = 2048) {
+			ClearPrompt(Style);
+			console_pos ptr = 0;
+			for (auto &i : PromptText) {
+				mc_area[height - 1][ptr++] = i;
+			}
+			GetClientArea().Draw();
+			// After this: move cursor and listen!
+			MoveAbsoluteCursor(coords(height - 1, ptr));
+			char *s = new char[BufferSize];
+			SetCursorDisplay(display_show, display_enable);
+			fgets(s, BufferSize - 1, stdin);
+			SetCursorDisplay(display_show, display_disable);
+			BarClean();
+			GetClientArea().Draw();
+			return s;
+		}
 		// Call this after all of work
 		void MainLoop() {
-			ResetConsole();
-			SetEscapeOutput();
-			SetCursorDisplay(display_show, display_disable);
-			for (auto &i : sub_controls) {
-				i.second.MyControl().PreRender.RunEvent(event_args());
+			try {
+				ResetConsole();
+				SetEscapeOutput();
+				SetCursorDisplay(display_show, display_disable);
+				for (auto &i : sub_controls) {
+					i.second.MyControl().PreRender.RunEvent(event_args());
+				}
+				current_active->second.MyControl().GotFocus.RunEvent(event_args());
+				GetClientArea().Draw();	// Initial drawer
+				while (true) {
+					ProcessKey(GetKeyboard());
+					//this_thread::yield();
+				}
 			}
-			current_active->second.MyControl().GotFocus.RunEvent(event_args());
-			GetClientArea().Draw();	// Initial drawer
-			while (true) {
-				ProcessKey(GetKeyboard());
-				//this_thread::yield();
+			catch (scg_exception e) {
+				Protection::RaiseError(e.what());
 			}
 		}
 	private:
+		void ClearPrompt(pixel_color Style) {
+			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i].color_info = Style;
+		}
 		// Buffered
 		client_area mc_area;
 	};

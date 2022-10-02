@@ -12,6 +12,8 @@ namespace scg {
 	using array_size = unsigned int;
 	using key_id = int;
 	using symboller = unsigned long long;
+
+
 	using win_handle = HANDLE;
 	using win_uint = DWORD;
 	using win_bool = BOOL;

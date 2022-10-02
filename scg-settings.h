@@ -12,8 +12,8 @@ namespace scg {
 	// Now sets keys for operations.
 	// For keycode: https://www.cnblogs.com/lxwphp/p/9548823.html
 	constexpr key_id switch_windows = 9;				// tab
-	constexpr key_id go_prev_control = 37;				// left arrow
-	constexpr key_id go_next_control = 39;				// right arrow
+	constexpr key_id go_prev_control = 'a';
+	constexpr key_id go_next_control = 'd';
 	constexpr key_id active_button = 13;				// enter
 
 	// Now sets colors.

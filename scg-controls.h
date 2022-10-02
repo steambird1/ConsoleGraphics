@@ -28,6 +28,16 @@ namespace scg {
 	class control;
 	using control_symbol = string;	// Must use string to register controls -- like Windows.
 
+	class pre_render_event_args : public event_args {
+	public:
+
+		pre_render_event_args(bool IsActived = false) : IsActived(IsActived) {
+
+		}
+
+		bool IsActived;
+	};
+
 	/*
 	This is a pure virtual (abstract) class, which means you can't create
 	object from it -- You should inherit it.
@@ -147,6 +157,10 @@ namespace scg {
 		// Unused now
 		bool IProcessActive = false;
 
+		virtual bool CurrentActivationAvailable() {
+			return sub_controls.size() && (current_active != sub_controls.end());
+		}
+
 		virtual void UpdateSubControls(client_area *cl = nullptr, bool ProcessActive = false, bool ForceAll = false) {
 			auto &mc_area = (cl == nullptr) ? (this->GetClientArea()) : (*cl);
 			for (auto &i : sub_controls) {
@@ -154,6 +168,7 @@ namespace scg {
 					if (i.first == current_active->first) continue;	// Draw active control at last
 				}
 				auto &mc = i.second.MyControl();
+				mc.UpdateSubControls();
 				if (mc.HasChanges || ForceAll) {
 					mc_area.MergeWith(mc.GetClientArea(), i.second.pos.x, i.second.pos.y);
 					mc.HasChanges = false;
@@ -166,6 +181,7 @@ namespace scg {
 			if (ProcessActive || ForceAll) {
 				auto &i = *current_active;
 				auto &mc = i.second.MyControl();
+				mc.UpdateSubControls();
 				if (mc.HasChanges) {
 					mc_area.MergeWith(mc.GetClientArea(), i.second.pos.x, i.second.pos.y);
 					mc.HasChanges = false;
@@ -191,6 +207,10 @@ namespace scg {
 			// Default LostFocus Drawer
 			PreRender += [this](event_args e) {
 				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
+				// Send DOWN PreRender()
+				for (auto &i : sub_controls) {
+					i.second.MyControl().PreRender.RunEvent(event_args());
+				}
 				HasChanges = true;
 			};
 			LostFocus += [this](event_args e) {
@@ -216,13 +236,17 @@ namespace scg {
 			// For active control ...
 			switch (KeyInfo) {
 			case go_prev_control:
+				if (CurrentActivationAvailable()) current_active->second.MyControl().LostFocus.RunEvent(event_args());
 				ActivePrevious();
+				if (CurrentActivationAvailable()) current_active->second.MyControl().GotFocus.RunEvent(event_args());
 				break;
 			case go_next_control:
+				if (CurrentActivationAvailable()) current_active->second.MyControl().LostFocus.RunEvent(event_args());
 				ActiveNext();
+				if (CurrentActivationAvailable()) current_active->second.MyControl().GotFocus.RunEvent(event_args());
 				break;
 			default:
-				if (current_active != sub_controls.end()) {
+				if (CurrentActivationAvailable()) {
 					current_active->second.MyControl().ProcessKey(KeyInfo);
 				}
 				break;
@@ -359,25 +383,27 @@ namespace scg {
 
 		button(string Text, console_size Height, console_size Width) : mc_area(client_area(Height, Width)) {
 			//this->Enabled = false;	// Can't be selected!
-			mc_area.Fillup(spixel(' ', text_label));
+			mc_area.Fillup(spixel(' ', inactived_button));
 			this->Height = Height;
 			this->Width = Width;
 			//this->Style = text_label;
+			//this->HaveGotFocus = false;
+			//this->IsActived = true;
 			this->Text = Text;
 			PreRender += [this](event_args e) {
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
-				HasChanges = true;
+				this->Enabled = true;
+				this->DrawBar(inactived_button);
 			};
 			LostFocus += [this](event_args e) {
 				// Set window title bar to inactive state
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
-				HasChanges = true;
+				HaveGotFocus = false;
+				this->DrawBar(inactived_button);
 			};
 			// Default GotFocus Drawer
 			GotFocus += [this](event_args e) {
 				// Set window title bar to active state
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = active_window;
-				HasChanges = true;
+				HaveGotFocus = true;
+				this->DrawBar(actived_button);
 			};
 		}
 
@@ -387,7 +413,7 @@ namespace scg {
 		}
 
 		virtual void ProcessKey(key_id KeyInfo) {
-			if (KeyInfo == active_button) {
+			if (KeyInfo == active_button && Enabled) {
 				OnClick.RunEvent(event_args());
 			}
 		}
@@ -444,9 +470,38 @@ namespace scg {
 			HasChanges = true;
 		});
 
+		property<bool> IsActived = property<bool>([this](bool &buf) -> bool {
+			return Enabled;
+		}, [this](bool sets, bool &buf) {
+			Enabled = sets;
+			if (sets) {
+				this->DrawBar(deactived_button);
+			}
+			else {
+				if (HaveGotFocus) {
+					this->DrawBar(actived_button);
+				}
+				else {
+					this->DrawBar(inactived_button);
+				}
+			}
+		});
+
 		event<event_args> OnClick;
 
 	protected:
+
+		bool HaveGotFocus = false;
+
+		void DrawBar(pixel_color BarColor) {
+			for (console_size i = 0; i < mc_area.SizeH; i++) {
+				for (console_size j = 0; j < mc_area.SizeW; j++) {
+					auto &m = mc_area[i][j];
+					m.color_info = BarColor;
+				}
+			}
+			HasChanges = true;
+		}
 
 		void RedrawText() {
 			string TextData = this->Text;
@@ -492,7 +547,7 @@ namespace scg {
 		}
 		virtual void ProcessKey(key_id KeyInfo) {
 			// Jump to another window if it is, or send it down to active one
-			if (current_active != sub_controls.end()) {
+			if (CurrentActivationAvailable()) {
 				if (KeyInfo == switch_windows) {
 					current_active->second.MyControl().LostFocus.RunEvent(event_args());
 					ActiveNext();

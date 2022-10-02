@@ -28,6 +28,7 @@ namespace scg {
 	class control;
 	using control_symbol = string;	// Must use string to register controls -- like Windows.
 
+	// Unused currently
 	class pre_render_event_args : public event_args {
 	public:
 
@@ -41,6 +42,8 @@ namespace scg {
 	/*
 	This is a pure virtual (abstract) class, which means you can't create
 	object from it -- You should inherit it.
+
+	Later: Put layout system here (by using something like +=)
 	*/
 	class control {
 	public:
@@ -68,9 +71,12 @@ namespace scg {
 		using controls_it = controls::iterator;
 
 		virtual client_area& GetClientArea() = 0;
-		virtual void ProcessKey(key_id KeyInfo) = 0;
+		virtual void ProcessKey(keyboard_state KeyInfo) = 0;
 		virtual control_symbol operator += (control_place others) {
 			sub_controls[others.syn] = others;
+			auto &omc = others.MyControl();
+			omc.my_coords = others.pos;
+			omc.father = this;
 			current_active = sub_controls.find(others.syn);
 			return others.syn;
 		}
@@ -105,6 +111,7 @@ namespace scg {
 				}
 			}
 			origin.pos = MoveTarget;
+			origin.MyControl().my_coords = MoveTarget;
 			origin.MyControl().HasChanges = true;
 			UpdateSubControls(&self_area, false, true);
 		}
@@ -133,6 +140,8 @@ namespace scg {
 		event<event_args> LostFocus;
 		event<event_args> GotFocus;
 		event<event_args> PreRender;	// Call at the first render
+		// Warning: in AfterDraw the display will be not updated!
+		event<event_args> AfterDraw;	// After drawing (mostly for input box)
 
 		bool HasChanges = true;	// For initial loader
 		bool Enabled = true;	// true if can be selected
@@ -153,6 +162,13 @@ namespace scg {
 			);
 
 	protected:
+
+		coords GetBaseCoords() {
+			if (father == nullptr) return my_coords;
+			return my_coords + father->GetBaseCoords();
+		}
+
+		coords my_coords;
 
 		// Unused now
 		bool IProcessActive = false;
@@ -192,6 +208,7 @@ namespace scg {
 
 		controls sub_controls;
 		controls_it current_active;
+		control *father = nullptr;
 		//client_area mc_area;
 	};
 
@@ -224,6 +241,11 @@ namespace scg {
 				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = active_window;
 				HasChanges = true;
 			};
+			AfterDraw += [this](event_args e) {
+				for (auto &i : sub_controls) {
+					i.second.MyControl().AfterDraw.RunEvent(event_args());
+				}
+			};
 		}
 		virtual client_area& GetClientArea() {
 			// Should be like this: Update all sons
@@ -232,7 +254,7 @@ namespace scg {
 			UpdateSubControls(&mc_area);
 			return mc_area;
 		}
-		virtual void ProcessKey(key_id KeyInfo) {
+		virtual void ProcessKey(keyboard_state KeyInfo) {
 			// For active control ...
 			switch (KeyInfo) {
 			case go_prev_control:
@@ -289,7 +311,7 @@ namespace scg {
 			// Do nothing for child
 			return mc_area;
 		}
-		virtual void ProcessKey(key_id KeyInfo) {
+		virtual void ProcessKey(keyboard_state KeyInfo) {
 			// Do nothing for keys
 		}
 
@@ -312,6 +334,7 @@ namespace scg {
 		property<console_size> Height = property<console_size>([this](console_size &buf) -> console_size {
 			return buf;
 		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		}
@@ -320,6 +343,7 @@ namespace scg {
 		property<console_size> Width = property<console_size>([this](console_size &buf) -> console_size {
 			return buf;
 		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		}
@@ -328,6 +352,7 @@ namespace scg {
 		property<string> Text = property<string>([this](string &buf) -> string {
 			return buf;
 		}, [this](string sets, string &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		});
@@ -348,6 +373,32 @@ namespace scg {
 
 	protected:
 		
+		void InvalidateText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = 0;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = ' ';
+				CurrentY++;
+			}
+			HasChanges = true;
+		}
+
 		void RedrawText() {
 			string TextData = this->Text;
 			console_size MyHeight = Height, MyWidth = Width;
@@ -412,7 +463,7 @@ namespace scg {
 			return mc_area;
 		}
 
-		virtual void ProcessKey(key_id KeyInfo) {
+		virtual void ProcessKey(keyboard_state KeyInfo) {
 			if (KeyInfo == active_button && Enabled) {
 				OnClick.RunEvent(event_args());
 			}
@@ -533,6 +584,169 @@ namespace scg {
 
 	};
 
+	class input : public control {
+	public:
+		input(console_size Height, console_size Width, string Text = "") : mc_area(client_area(Height, Width)) {
+			mc_area.Fillup(spixel(' ', background_input));
+			this->Text = Text;
+			this->Height = Height;
+			this->Width = Width;
+			this->GotFocus += [this](event_args e) {
+				SetCursorDisplay(display_show, display_enable);
+				MoveAbsoluteCursor(my_coords);
+			};
+			this->LostFocus += [this](event_args e) {
+				SetCursorDisplay(display_show, display_disable);
+			};
+			this->AfterDraw += [this](event_args e) {
+				MoveAbsoluteCursor(GetBaseCoords() + coords(MyCurrentX, MyCurrentY));
+			};
+		}
+
+		virtual client_area& GetClientArea() {
+			// Do nothing for child
+			return mc_area;
+		}
+
+		virtual void ProcessKey(keyboard_state KeyInfo) {
+			// Process input
+			if (KeyInfo.PrimaryKey >= 32 && KeyInfo.PrimaryKey <= 126 && KeyInfo.ExtendedKey == 0) {
+				// Acceptable input ...
+				this->Text = this->Text.GetValue() + char(KeyInfo.PrimaryKey);
+			}
+			else if (KeyInfo.PrimaryKey == 8) {
+				// Delete ...
+				string s = this->Text.GetValue();
+				if (s.length())
+					this->Text = s.substr(0, s.length() - 1);
+			}
+			else if (KeyInfo.PrimaryKey == 9) {
+				// Tab ...
+				this->Text = this->Text.GetValue() + '\t';
+			}
+			else if (KeyInfo.PrimaryKey == 13) {
+				// Enter ...
+				this->Text = this->Text.GetValue() + '\n';
+			}
+		}
+
+		virtual control_symbol operator += (control_place others) {
+			throw scg_exception("Cannot add sub control for a textbox");
+		}
+
+		virtual bool operator -= (control_symbol others) {
+			throw scg_exception("Cannot remove sub control from a textbox");
+		}
+
+		virtual void ActiveNext() {
+			throw scg_exception("Cannot active sub control of a textbox");
+		}
+
+		virtual void ActivePrevious() {
+			throw scg_exception("Cannot active sub control of a textbox");
+		}
+
+		property<console_size> Height = property<console_size>([this](console_size &buf) -> console_size {
+			return buf;
+		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		}
+		);
+
+		property<console_size> Width = property<console_size>([this](console_size &buf) -> console_size {
+			return buf;
+		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		}
+		);
+
+		property<string> Text = property<string>([this](string &buf) -> string {
+			return buf;
+		}, [this](string sets, string &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		});
+
+		property<pixel_color> Style = property<pixel_color>([this](pixel_color &buf) -> pixel_color {
+			return buf;
+		}, [this](pixel_color sets, pixel_color &buf) {
+			buf = sets;
+			console_size MyHeight = Height, MyWidth = Width;
+			for (console_pos i = 0; i < MyHeight; i++) {
+				for (console_pos j = 0; j < MyWidth; j++) {
+					mc_area[i][j].color_info = sets;
+				}
+			}
+			HasChanges = true;
+		});
+
+
+	protected:
+
+		void InvalidateText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = 0;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = ' ';
+				CurrentY++;
+			}
+			HasChanges = true;
+		}
+
+		console_pos MyCurrentX, MyCurrentY;
+
+		void RedrawText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = 0;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = i;
+				CurrentY++;
+			}
+			MyCurrentX = CurrentX;
+			MyCurrentY = CurrentY;
+			HasChanges = true;
+		}
+
+		client_area mc_area;
+	};
+
 	/*
 	This class is about master application. It should have 1 only.
 	*/
@@ -545,7 +759,7 @@ namespace scg {
 			UpdateSubControls(&mc_area, true);
 			return mc_area;
 		}
-		virtual void ProcessKey(key_id KeyInfo) {
+		virtual void ProcessKey(keyboard_state KeyInfo) {
 			// Jump to another window if it is, or send it down to active one
 			if (CurrentActivationAvailable()) {
 				if (KeyInfo == switch_windows) {
@@ -559,6 +773,9 @@ namespace scg {
 			}
 			// After processing key, draw (Only for master!)
 			GetClientArea().Draw();
+			for (auto &i : sub_controls) {
+				i.second.MyControl().AfterDraw.RunEvent(event_args());
+			}
 		}
 		// Call this after all of work
 		void MainLoop() {
@@ -571,7 +788,7 @@ namespace scg {
 			current_active->second.MyControl().GotFocus.RunEvent(event_args());
 			GetClientArea().Draw();	// Initial drawer
 			while (true) {
-				ProcessKey(getch());
+				ProcessKey(GetKeyboard());
 				//this_thread::yield();
 			}
 		}

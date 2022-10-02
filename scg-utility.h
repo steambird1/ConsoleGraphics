@@ -32,6 +32,10 @@ namespace scg {
 		console_pos x, y;
 	};
 
+	coords operator + (coords x, coords y) {
+		return coords(x.x + y.x, x.y + y.y);
+	}
+
 	class scg_exception : public exception {
 	public:
 		using exception::exception;
@@ -54,6 +58,11 @@ namespace scg {
 		}
 
 		operator data_type() {
+			return GetValue();
+		}
+
+		// For some reason operator data_type() can't be used properly.
+		data_type GetValue() {
 			return getter(fdata);
 		}
 

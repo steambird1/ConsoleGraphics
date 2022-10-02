@@ -1,7 +1,12 @@
 #pragma once
 #include "scg-utility.h"
 #include <cstdio>
+#include <set>
+#include <conio.h>
 using namespace std;
+
+#define getch _getch
+#define kbhit _kbhit
 
 namespace scg {
 
@@ -105,6 +110,38 @@ namespace scg {
 
 	void ResetConsole() {
 		system("cls & color 07");
+	}
+
+	const set<key_id> ExtendedKeys = { 224 };
+
+	struct keyboard_state {
+		// = get a keyboard state
+		key_id PrimaryKey, ExtendedKey = 0;
+		// If first one is Extended Key: Primary Key = Next Keycode, Extended Key = Extended (First) one
+
+		keyboard_state(key_id PrimaryKey = 0, key_id ExtendedKey = 0) : PrimaryKey(PrimaryKey), ExtendedKey(ExtendedKey) {
+			
+		}
+
+		// Get comparable key: Put Extended key into higher place
+		operator key_id() {
+			return (ExtendedKey << 8) | PrimaryKey;
+		}
+
+#define MakeKeyID(PrimaryKey,ExtendedKey) ((ExtendedKey << 8) | PrimaryKey)
+	};
+
+	keyboard_state GetKeyboard() {
+		keyboard_state k;
+		key_id g = getch();
+		if (ExtendedKeys.count(g)) {
+			k.ExtendedKey = g;
+			k.PrimaryKey = getch();
+		}
+		else {
+			k.PrimaryKey = g;
+		}
+		return k;
 	}
 
 };

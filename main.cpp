@@ -36,12 +36,15 @@ int main() {
 		t.Text = "Press";
 		bc.Text = "Press me!";
 		bc.IsActived = !bc.IsActived;
-		c.MoveControl("Button2", coords(6, 3));
+		c.MoveControl("Button2", coords(7, 4));
 	};
+
+	input ip = input(2, 8);
 
 	c += control_set(&bb, "Button1", coords(2, 2));
 	c += control_set(&bc, "Button2", coords(3, 2));
 	c += control_set(&t, "Label1", coords(4, 2));
+	c += control_set(&ip, "Input1", coords(5, 1));
 
 	m += control_set(&c, "1020", coords(4, 4));
 

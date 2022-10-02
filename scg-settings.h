@@ -1,6 +1,7 @@
 #pragma once
 #include "scg-utility.h"
 #include "scg-graph.h"
+#include "scg-console.h"
 
 namespace scg {
 
@@ -11,10 +12,10 @@ namespace scg {
 
 	// Now sets keys for operations.
 	// For keycode: https://www.cnblogs.com/lxwphp/p/9548823.html
-	constexpr key_id switch_windows = 9;				// tab
-	constexpr key_id go_prev_control = 'a';
-	constexpr key_id go_next_control = 'd';
-	constexpr key_id active_button = 13;				// enter
+	const key_id switch_windows = 9;				// tab
+	const key_id go_prev_control = MakeKeyID(75, 224);	// left key
+	const key_id go_next_control = MakeKeyID(77, 224);	// right key
+	const key_id active_button = 13;				// enter
 
 	// Now sets colors.
 	// For colors: scg-console.h
@@ -27,4 +28,5 @@ namespace scg {
 	const pixel_color inactived_button = pixel_colors::Generate(text_white + text_intensity + text_background, text_black + text_foreground);
 	const pixel_color actived_button = pixel_colors::Generate(text_red + text_background, text_white + text_intensity + text_background);
 	const pixel_color deactived_button = pixel_colors::Generate(text_black + text_intensity + text_background, text_white + text_foreground);
+	const pixel_color background_input = pixel_colors::Generate(text_white + text_intensity + text_background, text_black + text_foreground);
 }

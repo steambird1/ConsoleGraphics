@@ -36,6 +36,7 @@ int main() {
 		t.Text = "Press";
 		bc.Text = "Press me!";
 		bc.IsActived = !bc.IsActived;
+		c.MoveControl("Button2", coords(6, 3));
 	};
 
 	c += control_set(&bb, "Button1", coords(2, 2));

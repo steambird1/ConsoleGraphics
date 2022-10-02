@@ -836,6 +836,10 @@ namespace scg {
 				ResetConsole();
 				SetEscapeOutput();
 				SetCursorDisplay(display_show, display_disable);
+				if (sub_controls.size() <= 0) {
+					Protection::RaiseError("SCG Exception: Must have at least one sub-control");
+					return;
+				}
 				for (auto &i : sub_controls) {
 					i.second.MyControl().PreRender.RunEvent(event_args());
 				}
@@ -847,7 +851,10 @@ namespace scg {
 				}
 			}
 			catch (scg_exception e) {
-				Protection::RaiseError(e.what());
+				Protection::RaiseError(string("SCG Exception:") + e.what());
+			}
+			catch (exception ne) {
+				Protection::RaiseError(string("C++ Exception:") + ne.what());
 			}
 		}
 	private:

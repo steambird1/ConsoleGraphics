@@ -2,6 +2,8 @@
 #include "scg-utility.h"
 #include "scg-graph.h"
 #include "scg-console.h"
+#include <string>
+using namespace std;
 
 namespace scg {
 
@@ -16,6 +18,7 @@ namespace scg {
 	const key_id go_prev_control = MakeKeyID(75, 224);	// left key
 	const key_id go_next_control = MakeKeyID(77, 224);	// right key
 	const key_id active_button = 13;				// enter
+	const key_id active_checkbox = active_button;
 
 	// Now sets colors.
 	// For colors: scg-console.h
@@ -29,4 +32,12 @@ namespace scg {
 	const pixel_color actived_button = pixel_colors::Generate(text_red + text_background, text_white + text_intensity + text_background);
 	const pixel_color deactived_button = pixel_colors::Generate(text_black + text_intensity + text_background, text_white + text_foreground);
 	const pixel_color background_input = pixel_colors::Generate(text_white + text_intensity + text_background, text_black + text_foreground);
+	const pixel_color actived_checkbox = actived_button;
+	const pixel_color deactived_checkbox = deactived_button;
+
+	// Checkbox settings
+	const console_size rsize_checkbox = 3;
+	const string unselected_checkbox = "[ ]";
+	const string multiple_checkbox = "[x]";
+	const string radio_checkbox = "[.]";
 }

@@ -4,6 +4,7 @@
 #include "scg-settings.h"
 #include "scg-console.h"
 #include <map>
+#include <vector>
 #include <string>
 #include <thread>
 #include <conio.h>
@@ -77,6 +78,7 @@ namespace scg {
 			auto &omc = others.MyControl();
 			omc.my_coords = others.pos;
 			omc.father = this;
+			omc.my_symbol = others.syn;
 			current_active = sub_controls.find(others.syn);
 			return others.syn;
 		}
@@ -209,6 +211,7 @@ namespace scg {
 		controls sub_controls;
 		controls_it current_active;
 		control *father = nullptr;
+		control_symbol my_symbol;
 		//client_area mc_area;
 	};
 
@@ -749,6 +752,244 @@ namespace scg {
 
 		client_area mc_area;
 	};
+
+	// Including both radio and multiple checkbox.
+	class checkbox : public control {
+	public:
+
+		struct radio_group {
+			vector<checkbox*> others;
+		};
+
+		checkbox(string Text, console_size Height, console_size Width, bool Checked = false, radio_group *RadioGroup = nullptr) : mc_area(client_area(Height, Width)) {
+			mc_area.Fillup(spixel(' ', text_label));
+			this->Height = Height;
+			this->Width = Width;
+			this->Text = Text;
+			if (RadioGroup != nullptr) {
+				this->RadioGroup = RadioGroup;
+				RadioGroup->others.push_back(this);
+				this->IsRadio = true;
+			}
+			else {
+				this->IsRadio = false;
+			}
+			this->IsChecked.fdata = Checked;
+			this->DrawStatus(Checked);
+			PreRender += [this](event_args e) {
+				this->Enabled = true;
+				this->DrawBar(inactived_button);
+			};
+			LostFocus += [this](event_args e) {
+				// Set window title bar to inactive state
+				HaveGotFocus = false;
+				this->DrawBar(inactived_button);
+			};
+			// Default GotFocus Drawer
+			GotFocus += [this](event_args e) {
+				// Set window title bar to active state
+				HaveGotFocus = true;
+				this->DrawBar(actived_button);
+			};
+		}
+
+		virtual client_area& GetClientArea() {
+			// Do nothing for child
+			return mc_area;
+		}
+		virtual void ProcessKey(keyboard_state KeyInfo) {
+			if (KeyInfo == active_button && Enabled) {
+				this->IsChecked = !this->IsChecked;
+			}
+		}
+
+		virtual control_symbol operator += (control_place others) {
+			throw scg_exception("Cannot add sub control for a label");
+		}
+
+		virtual bool operator -= (control_symbol others) {
+			throw scg_exception("Cannot remove sub control from a label");
+		}
+
+		virtual void ActiveNext() {
+			throw scg_exception("Cannot active sub control of a label");
+		}
+
+		virtual void ActivePrevious() {
+			throw scg_exception("Cannot active sub control of a label");
+		}
+
+		property<console_size> Height = property<console_size>([this](console_size &buf) -> console_size {
+			return buf;
+		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		}
+		);
+
+		property<console_size> Width = property<console_size>([this](console_size &buf) -> console_size {
+			return buf;
+		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		}
+		);
+
+		property<string> Text = property<string>([this](string &buf) -> string {
+			return buf;
+		}, [this](string sets, string &buf) {
+			InvalidateText();
+			buf = sets;
+			RedrawText();
+		});
+
+		property<pixel_color> Style = property<pixel_color>([this](pixel_color &buf) -> pixel_color {
+			return buf;
+		}, [this](pixel_color sets, pixel_color &buf) {
+			buf = sets;
+			console_size MyHeight = Height, MyWidth = Width;
+			for (console_pos i = 0; i < MyHeight; i++) {
+				for (console_pos j = 0; j < MyWidth; j++) {
+					mc_area[i][j].color_info = sets;
+				}
+			}
+			HasChanges = true;
+		});
+
+
+		property<bool> IsRadioCheckbox = property<bool>([this](bool &tmp) -> bool {
+			return this->IsRadio;
+		}, [this](bool sets, bool &tmp) {
+			throw scg_exception("Cannot set whether the control is radio");
+		});
+
+		// Status is for: Checked or not
+		property<bool> IsChecked = property<bool>([this](bool &tmp) -> bool {
+			return tmp;
+		}, [this](bool sets, bool &tmp) {
+			if (sets && this->IsRadio) {
+				// Set others
+				if (this->RadioGroup == nullptr) {
+					throw scg_exception("Bad radio group");
+				}
+				for (auto &i : this->RadioGroup->others) {
+					if (i->my_symbol == this->my_symbol) continue;
+					i->IsChecked = false;
+				}
+			}
+			if (tmp != sets) {
+				DrawStatus(sets);
+				tmp = sets;
+				OnStatusChange.RunEvent(event_args());
+			}
+		});
+
+		event<event_args> OnStatusChange;
+
+	protected:
+
+		bool IsRadio = false;
+		radio_group *RadioGroup = nullptr;
+
+		bool HaveGotFocus = false;
+
+		void DrawBar(pixel_color BarColor) {
+			for (console_size i = 0; i < mc_area.SizeH; i++) {
+				console_size j = 0;
+				if (i == 0) j = rsize_checkbox + 1;
+				for (; j < mc_area.SizeW; j++) {
+					auto &m = mc_area[i][j];
+					m.color_info = BarColor;
+				}
+			}
+			HasChanges = true;
+		}
+
+		void DrawStatus(bool NewStatus) {
+			console_pos Current = 0;
+			if (NewStatus) {
+				if (this->IsRadio) {
+					for (auto &i : radio_checkbox) {
+						mc_area[0][Current] = i;
+						Current++;
+					}
+				}
+				else {
+					for (auto &i : multiple_checkbox) {
+						mc_area[0][Current] = i;
+						Current++;
+					}
+				}
+			}
+			else {
+				for (auto &i : unselected_checkbox) {
+					mc_area[0][Current] = i;
+					Current++;
+				}
+			}
+			HasChanges = true;
+		}
+
+		void InvalidateText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = rsize_checkbox + 1;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = ' ';
+				CurrentY++;
+			}
+			HasChanges = true;
+		}
+
+		void RedrawText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = rsize_checkbox + 1;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = i;
+				CurrentY++;
+			}
+			HasChanges = true;
+		}
+
+
+	private:
+		client_area mc_area;
+	};
+
+	using check_group = checkbox::radio_group;
 
 	class Protection {
 	public:

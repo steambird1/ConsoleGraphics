@@ -7,12 +7,30 @@ int main() {
 
 	master m;
 
-	//window w = window(5, 15);
-	//w.Title = "Window";
-	button BlueBetter = button("BlueBetter", 1, 10);
+	window w = window(5, 15);
+	w.Title = "Window";
+
+	check_group ch;
+
+	checkbox c = checkbox("Example", 1, 12, false, &ch);
+	checkbox d = checkbox("Another", 1, 12, true, &ch);
+
+	c.OnStatusChange += [&](event_args e) {
+		if (c.IsChecked) {
+			m.BarPrompt("Example is checked", pixel_colors::Generate(text_blue + text_background, text_white + text_intensity + text_foreground));
+		}
+		else {
+			m.BarClean();
+		}
+	};
+
+	w += control_set(&c, "Check1", coords(1, 1));
+	w += control_set(&d, "Check2", coords(2, 1));
+
+	//button BlueBetter = button("BlueBetter", 1, 10);
 	//w += control_set(&BlueBetter, "BlueBetter", coords(1, 0));
 	
-	m += control_set(&BlueBetter, "Main", coords(3, 3));
+	m += control_set(&w, "Main", coords(3, 3));
 
 	m.MainLoop();
 	return 0;

@@ -125,7 +125,7 @@ namespace scg {
 				current_active--;
 				if (yield >= sub_controls.size()) return;	// All elements are not ready
 				yield++;
-			} while (!current_active->second.MyControl().Enabled);
+			} while ((!current_active->second.MyControl().Enabled) || (!current_active->second.MyControl().Visible));
 		}
 		virtual void ActiveNext() {
 			if (sub_controls.size() <= 0) return;	// Already no element!
@@ -135,7 +135,7 @@ namespace scg {
 				if (yield >= sub_controls.size()) return;	// All elements are not ready
 				yield++;
 				if (current_active == sub_controls.end()) current_active = sub_controls.begin();
-			} while (!current_active->second.MyControl().Enabled);
+			} while ((!current_active->second.MyControl().Enabled) || (!current_active->second.MyControl().Visible));
 		}
 
 		// Common event for all controls:
@@ -147,6 +147,19 @@ namespace scg {
 
 		bool HasChanges = true;	// For initial loader
 		bool Enabled = true;	// true if can be selected
+		// true if the control can be shown
+		property<bool> Visible = property<bool>(
+			[this](bool &tmp) -> bool {
+			return IVisible;
+		},
+			[this](bool sets, bool &tmp) {
+			if (IVisible != sets) {
+				IVisible = sets;
+				this->HasChanges = true;
+			}
+		}
+
+			);
 
 		spixel my_background = background_master;
 		
@@ -174,6 +187,7 @@ namespace scg {
 
 		// Unused now
 		bool IProcessActive = false;
+		bool IVisible = true;
 
 		virtual bool CurrentActivationAvailable() {
 			return sub_controls.size() && (current_active != sub_controls.end());
@@ -186,22 +200,51 @@ namespace scg {
 					if (i.first == current_active->first) continue;	// Draw active control at last
 				}
 				auto &mc = i.second.MyControl();
+				if (!mc.Visible) {
+					auto &origin = i.second;
+					auto &orect = mc.GetClientArea();
+					auto &self_area = mc_area;
+					for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
+						for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
+							self_area[i][j] = spixel(' ', my_background);
+						}
+					}
+					mc.HasChanges = false;
+					HasChanges = true;
+				}
+			}
+			for (auto &i : sub_controls) {
+				if (ProcessActive) {
+					if (i.first == current_active->first) continue;	// Draw active control at last
+				}
+				auto &mc = i.second.MyControl();
+				if (!mc.Visible) continue;
 				mc.UpdateSubControls();
 				if (mc.HasChanges || ForceAll) {
 					mc_area.MergeWith(mc.GetClientArea(), i.second.pos.x, i.second.pos.y);
 					mc.HasChanges = false;
 					HasChanges = true;
 				}
-				// Debug
-
-				// End
 			}
 			if (ProcessActive || ForceAll) {
 				auto &i = *current_active;
 				auto &mc = i.second.MyControl();
 				mc.UpdateSubControls();
 				if (mc.HasChanges) {
-					mc_area.MergeWith(mc.GetClientArea(), i.second.pos.x, i.second.pos.y);
+					if (mc.Visible) {
+						mc_area.MergeWith(mc.GetClientArea(), i.second.pos.x, i.second.pos.y);
+					}
+					else {
+						// Actually active control should not be hidden ... It's undefined behavior.
+						auto &origin = i.second;
+						auto &orect = mc.GetClientArea();
+						auto &self_area = mc_area;
+						for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
+							for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
+								self_area[i][j] = spixel(' ', my_background);
+							}
+						}
+					}
 					mc.HasChanges = false;
 					HasChanges = true;
 				}
@@ -729,6 +772,7 @@ namespace scg {
 			for (auto &i : TextData) {
 				if (i == '\n') {
 					CurrentX++;
+					CurrentY = 0;
 					continue;
 				}
 				if (i == '\t') {
@@ -1100,7 +1144,7 @@ namespace scg {
 		}
 	private:
 		void ClearPrompt(pixel_color Style) {
-			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i].color_info = Style;
+			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', Style);
 		}
 		// Buffered
 		client_area mc_area;

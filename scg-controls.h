@@ -27,17 +27,17 @@ namespace scg {
 
 	// These are declarations.
 	class control;
+	class master;
 	using control_symbol = string;	// Must use string to register controls -- like Windows.
 
-	// Unused currently
 	class pre_render_event_args : public event_args {
 	public:
 
-		pre_render_event_args(bool IsActived = false) : IsActived(IsActived) {
+		pre_render_event_args(master *MasterPointer = nullptr) : MasterPointer(MasterPointer) {
 
 		}
 
-		bool IsActived;
+		master *MasterPointer;
 	};
 
 	/*
@@ -141,7 +141,7 @@ namespace scg {
 		// Common event for all controls:
 		event<event_args> LostFocus;
 		event<event_args> GotFocus;
-		event<event_args> PreRender;	// Call at the first render
+		event<pre_render_event_args> PreRender;	// Call at the first render
 		// Warning: in AfterDraw the display will be not updated!
 		event<event_args> AfterDraw;	// After drawing (mostly for input box)
 
@@ -258,8 +258,150 @@ namespace scg {
 		//client_area mc_area;
 	};
 
+	class invisible_control : public control {
+	public:
+
+		invisible_control() {
+			this->IVisible = false;
+			this->IProcessActive = false;
+			this->Enabled = property<bool>([](bool &in) -> bool {return false; }, [](bool set, bool &in) {});
+			this->Visible = property<bool>([](bool &in) -> bool {return false; }, [](bool set, bool &in) {});
+		}
+
+		virtual client_area& GetClientArea() {
+			return empty_area;
+		}
+		virtual void ProcessKey(keyboard_state KeyInfo) {
+			// Do nothing
+		}
+
+	private:
+		client_area empty_area = client_area(1, 1);	// 0,0 seem to be fail
+	};
+
 	// For easier access
 	using control_set = control::control_place;
+
+
+	class Protection {
+	public:
+		static void RaiseError(string Description) {
+			ErrorRaised = true;
+			ResetConsole();
+			SetTextDisplay();
+			MoveAbsoluteCursor(coords(0, 0));
+			system("color 1f");
+			printf("An critical error has occured and Console Graphics has been \n");
+			printf("shut down to protect your application.                      \n");
+			printf("                                                            \n");
+			printf("Technial information: Error:                                \n%s", Description.c_str());
+			while (1) {
+				this_thread::yield();
+			}
+		}
+	private:
+		static bool ErrorRaised;
+	};
+	bool Protection::ErrorRaised = false;
+
+
+	/*
+	This class is about master application. It should have 1 only.
+	*/
+	class master : public control {
+	public:
+		master() : mc_area(client_area(height, width)) {
+			this->IProcessActive = true;
+		}
+		virtual client_area& GetClientArea() {
+			UpdateSubControls(&mc_area, true);
+			return mc_area;
+		}
+		void MasterRender() {
+			GetClientArea().Draw();
+			for (auto &i : sub_controls) {
+				i.second.MyControl().AfterDraw.RunEvent(event_args());
+			}
+		}
+		virtual void ProcessKey(keyboard_state KeyInfo) {
+			// Jump to another window if it is, or send it down to active one
+			if (CurrentActivationAvailable()) {
+				if (KeyInfo == switch_windows) {
+					current_active->second.MyControl().LostFocus.RunEvent(event_args());
+					ActiveNext();
+					current_active->second.MyControl().GotFocus.RunEvent(event_args());
+				}
+				else {
+					current_active->second.MyControl().ProcessKey(KeyInfo);
+				}
+			}
+			// After processing key, draw (Only for master!)
+			MasterRender();
+		}
+		// Call this for prompt bar
+		void BarPrompt(string PromptText, pixel_color Style) {
+			ClearPrompt(Style);
+			console_pos ptr = 0;
+			for (auto &i : PromptText) {
+				mc_area[height - 1][ptr++] = i;
+			}
+			GetClientArea().Draw();
+		}
+		void BarClean() {
+			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', 0);
+		}
+		string BarInput(string PromptText, pixel_color Style, int BufferSize = 2048) {
+			ClearPrompt(Style);
+			console_pos ptr = 0;
+			for (auto &i : PromptText) {
+				mc_area[height - 1][ptr++] = i;
+			}
+			GetClientArea().Draw();
+			// After this: move cursor and listen!
+			MoveAbsoluteCursor(coords(height - 1, ptr));
+			char *s = new char[BufferSize];
+			SetCursorDisplay(display_show, display_enable);
+			fgets(s, BufferSize - 1, stdin);
+			SetCursorDisplay(display_show, display_disable);
+			BarClean();
+			GetClientArea().Draw();
+			return s;
+		}
+		// Call this after all of work
+		void MainLoop() {
+			try {
+				ResetConsole();
+				SetEscapeOutput();
+				SetCursorDisplay(display_show, display_disable);
+				if (sub_controls.size() <= 0) {
+					Protection::RaiseError("SCG Exception: Must have at least one sub-control");
+					return;
+				}
+				for (auto &i : sub_controls) {
+					i.second.MyControl().PreRender.RunEvent(pre_render_event_args(this));
+				}
+				current_active->second.MyControl().GotFocus.RunEvent(event_args());
+				GetClientArea().Draw();	// Initial drawer
+				while (true) {
+					ProcessKey(GetKeyboard());
+					//this_thread::yield();
+				}
+			}
+			catch (scg_exception e) {
+				Protection::RaiseError(string("SCG Exception:") + e.what());
+			}
+			catch (exception ne) {
+				Protection::RaiseError(string("C++ Exception:") + ne.what());
+			}
+		}
+	private:
+		void ClearPrompt(pixel_color Style) {
+			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', Style);
+		}
+		// Buffered
+		client_area mc_area;
+	};
+
 
 	class window : public control {
 	public:
@@ -268,11 +410,12 @@ namespace scg {
 			mc_area.Fillup(spixel(' ', background_window));
 			// For title bar
 			// Default LostFocus Drawer
-			PreRender += [this](event_args e) {
+			PreRender += [this](pre_render_event_args e) {
+				this->my_master = e.MasterPointer;
 				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
 				// Send DOWN PreRender()
 				for (auto &i : sub_controls) {
-					i.second.MyControl().PreRender.RunEvent(event_args());
+					i.second.MyControl().PreRender.RunEvent(pre_render_event_args(this->my_master));
 				}
 				HasChanges = true;
 			};
@@ -334,6 +477,7 @@ namespace scg {
 		
 	private:
 		client_area mc_area;
+		master *my_master;
 	};
 
 	// Insert more controls ....
@@ -1035,119 +1179,44 @@ namespace scg {
 
 	using check_group = checkbox::radio_group;
 
-	class Protection {
-	public:
-		static void RaiseError(string Description) {
-			ErrorRaised = true;
-			ResetConsole();
-			SetTextDisplay();
-			MoveAbsoluteCursor(coords(0, 0));
-			system("color 1f");
-			printf("An critical error has occured and Console Graphics has been \n");
-			printf("shut down to protect your application.                      \n");
-			printf("                                                            \n");
-			printf("Technial information: Error:                                \n%s", Description.c_str());
-			while (1) {
-				this_thread::yield();
-			}
-		}
-	private:
-		static bool ErrorRaised;
-	};
-	bool Protection::ErrorRaised = false;
+	class timer : public invisible_control {
 
-	/*
-	This class is about master application. It should have 1 only.
-	*/
-	class master : public control {
 	public:
-		master() : mc_area(client_area(height, width)) {
-			this->IProcessActive = true;
+		void RunMe() {
+			this->ToCall.RunEvent(event_args());
+			if (this->my_master != nullptr) {
+				this->my_master->MasterRender();
+			}
 		}
-		virtual client_area& GetClientArea() {
-			UpdateSubControls(&mc_area, true);
-			return mc_area;
-		}
-		virtual void ProcessKey(keyboard_state KeyInfo) {
-			// Jump to another window if it is, or send it down to active one
-			if (CurrentActivationAvailable()) {
-				if (KeyInfo == switch_windows) {
-					current_active->second.MyControl().LostFocus.RunEvent(event_args());
-					ActiveNext();
-					current_active->second.MyControl().GotFocus.RunEvent(event_args());
+
+		void IgniteMe(master *to_be) {
+			if (this->my_master != nullptr) {
+				return;
+			}
+			this->my_master = to_be;
+			this->my_thr = thread([this]() {
+				if (this->Enabled) {
+					RunMe();
 				}
-				else {
-					current_active->second.MyControl().ProcessKey(KeyInfo);
-				}
-			}
-			// After processing key, draw (Only for master!)
-			GetClientArea().Draw();
-			for (auto &i : sub_controls) {
-				i.second.MyControl().AfterDraw.RunEvent(event_args());
-			}
+				this_thread::sleep_for(chrono::milliseconds(this->Interval));
+			});
+			
 		}
-		// Call this for prompt bar
-		void BarPrompt(string PromptText, pixel_color Style) {
-			ClearPrompt(Style);
-			console_pos ptr = 0;
-			for (auto &i : PromptText) {
-				mc_area[height-1][ptr++] = i;
-			}
-			GetClientArea().Draw();
+
+		timer(int Interval = 100, bool Enabled = true) : Interval(Interval), Enabled(Enabled) {
+			invisible_control::invisible_control();
+			this->PreRender += [this](pre_render_event_args e) {
+				this->IgniteMe(e.MasterPointer);
+			};
 		}
-		void BarClean() {
-			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', 0);
-		}
-		string BarInput(string PromptText, pixel_color Style, int BufferSize = 2048) {
-			ClearPrompt(Style);
-			console_pos ptr = 0;
-			for (auto &i : PromptText) {
-				mc_area[height - 1][ptr++] = i;
-			}
-			GetClientArea().Draw();
-			// After this: move cursor and listen!
-			MoveAbsoluteCursor(coords(height - 1, ptr));
-			char *s = new char[BufferSize];
-			SetCursorDisplay(display_show, display_enable);
-			fgets(s, BufferSize - 1, stdin);
-			SetCursorDisplay(display_show, display_disable);
-			BarClean();
-			GetClientArea().Draw();
-			return s;
-		}
-		// Call this after all of work
-		void MainLoop() {
-			try {
-				ResetConsole();
-				SetEscapeOutput();
-				SetCursorDisplay(display_show, display_disable);
-				if (sub_controls.size() <= 0) {
-					Protection::RaiseError("SCG Exception: Must have at least one sub-control");
-					return;
-				}
-				for (auto &i : sub_controls) {
-					i.second.MyControl().PreRender.RunEvent(event_args());
-				}
-				current_active->second.MyControl().GotFocus.RunEvent(event_args());
-				GetClientArea().Draw();	// Initial drawer
-				while (true) {
-					ProcessKey(GetKeyboard());
-					//this_thread::yield();
-				}
-			}
-			catch (scg_exception e) {
-				Protection::RaiseError(string("SCG Exception:") + e.what());
-			}
-			catch (exception ne) {
-				Protection::RaiseError(string("C++ Exception:") + ne.what());
-			}
-		}
+
+		event<event_args> ToCall;
+		bool Enabled;
+		int Interval;
+
 	private:
-		void ClearPrompt(pixel_color Style) {
-			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', Style);
-		}
-		// Buffered
-		client_area mc_area;
+		master *my_master = nullptr;
+		thread my_thr;
 	};
 
 };

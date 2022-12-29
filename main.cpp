@@ -48,6 +48,21 @@ int main() {
 	
 	m += control_set(&w, "Main", coords(3, 3));
 
+	window antw = window(5, 9);
+	antw.Title = "Timer";
+	label lb = label("0", 1, 8);
+	long long counter = 0;
+	timer t = timer(1000);
+	t.ToCall += [&](event_args e) {
+		counter++;
+		lb.Text = to_string(counter);
+	};
+	
+	antw += control_set(&lb, "Label2", coords(1, 1));
+
+	m += control_set(&t, "Timer1", coords(1, 1));
+	m += control_set(&antw, "Window2", coords(11, 12));
+
 	m.MainLoop();
 	return 0;
 }

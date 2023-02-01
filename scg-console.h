@@ -66,7 +66,7 @@ namespace scg {
 	}
 
 	int kbhit() {
-		throw exception("Unsupported method");
+		throw scg_exception("Unsupported method");
 	}
 #endif
 

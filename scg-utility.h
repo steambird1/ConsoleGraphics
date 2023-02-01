@@ -75,7 +75,6 @@ namespace scg {
 	private:
 		string scg_info;
 	};
-#define exception scg_exception
 #endif
 
 	template <typename data_type, typename field_type = data_type>

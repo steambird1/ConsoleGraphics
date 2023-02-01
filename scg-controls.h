@@ -125,6 +125,17 @@ namespace scg {
 		}
 		virtual void ActiveNext() {
 			if (sub_controls.size() <= 0) return;	// Already no element!
+			bool have_enable = false;
+			for (auto &i : sub_controls) {
+				if (i.second.MyControl().Enabled) {
+					have_enable = true;
+					break;
+				}
+			}
+			if (!have_enable) {
+				current_active = sub_controls.begin();
+				return;	// Can't set!
+			}
 			size_t yield = 0;
 			do {
 				current_active++;

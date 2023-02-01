@@ -1250,7 +1250,9 @@ namespace scg {
 		}
 
 		timer(int Interval = 100, bool Enabled = true) : Interval(Interval), Enabled(Enabled) {
+/*#if !defined(__GNUC__)
 			invisible_control::invisible_control();
+#endif*/
 			this->PreRender += [this](pre_render_event_args e) {
 				this->IgniteMe(e.MasterPointer);
 			};

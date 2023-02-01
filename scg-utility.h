@@ -54,10 +54,29 @@ namespace scg {
 		return coords(x.x + y.x, x.y + y.y);
 	}
 
+#if defined(_WIN32)
 	class scg_exception : public exception {
 	public:
 		using exception::exception;
 	};
+#else
+	class scg_exception : public exception {
+	public:
+		using exception::exception;
+		scg_exception() {
+
+		}
+		scg_exception(string scg_info) : scg_info(scg_info) {
+
+		}
+		virtual const char* what() {
+			return scg_info.c_str();
+		}
+	private:
+		string scg_info;
+	};
+#define exception scg_exception
+#endif
 
 	template <typename data_type, typename field_type = data_type>
 	class property {

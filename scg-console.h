@@ -2,15 +2,80 @@
 #include "scg-utility.h"
 #include <cstdio>
 #include <set>
+#include <exception>
+#if defined(_WIN32)
 #include <conio.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#include <memory.h>
+#endif
 using namespace std;
-
-#define getch _getch
-#define kbhit _kbhit
 
 namespace scg {
 
 	// Refer to: https://learn.microsoft.com/zh-cn/windows/console/console-virtual-terminal-sequences
+
+#if defined(_WIN32)
+#define getch _getch
+#define kbhit _kbhit
+#else
+	class LinuxGetchSupporter {
+	public:
+		static void StoreSettings() {
+			if (CalledMe) return;
+			CalledMe = true;
+			res = tcgetattr(STDIN_FILENO, &org_opts);
+			if (res != 0) {
+				throw scg_exception("getch() Internal Error");
+			}
+		}
+		static void ApplySCGSettings() {
+			memcpy(&new_opts, &org_opts, sizeof(new_opts));
+			new_opts.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
+			tcsetattr(STDIN_FILENO, TCSANOW, &new_opts);
+		}
+		static void Initalize() {
+			StoreSettings();
+			ApplySCGSettings();
+			atexit(LinuxGetchSupporter::ResetConsoleSettings);
+		}
+		static void ResetConsoleSettings() {
+			if (!CalledMe) return;
+			CalledMe = false;
+			res = tcsetattr(STDIN_FILENO, TCSANOW, &org_opts);
+			if (res != 0) {
+				throw scg_exception("getch() Internal Error");
+			}
+		}
+		static int GetKeyPress() {
+			if (!CalledMe) Initalize();
+			return getchar();
+		}
+	private:
+		static int res;
+		static termios org_opts, new_opts;
+		static bool CalledMe;
+	};
+	int LinuxGetchSupporter::res = 0;
+	termios LinuxGetchSupporter::org_opts, LinuxGetchSupporter::new_opts;
+	bool LinuxGetchSupporter::CalledMe = false;
+
+	int getch() {
+		return LinuxGetchSupporter::GetKeyPress();
+	}
+
+	int kbhit() {
+		throw exception("Unsupported method");
+	}
+#endif
+
+	class AdaptController {
+	public:
+		static void AutoInitalize() {
+
+		}
+	};
 
 	constexpr char escape = 0x1B;
 
@@ -94,6 +159,8 @@ namespace scg {
 		}
 	};
 
+#define MakeKeyID(PrimaryKey,ExtendedKey) ((ExtendedKey << 8) | PrimaryKey)
+#if defined(_WIN32)
 	// Please call this function before use anything!
 	void SetEscapeOutput() {
 		win_handle hout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -127,8 +194,6 @@ namespace scg {
 		operator key_id() {
 			return (ExtendedKey << 8) | PrimaryKey;
 		}
-
-#define MakeKeyID(PrimaryKey,ExtendedKey) ((ExtendedKey << 8) | PrimaryKey)
 	};
 
 	keyboard_state GetKeyboard() {
@@ -143,5 +208,49 @@ namespace scg {
 		}
 		return k;
 	}
+#else
 
+	void ResetConsole() {
+		system("clear");
+		SetTextDisplay();
+	}
+
+	// Please call this function before use anything!
+	void SetEscapeOutput() {
+		LinuxGetchSupporter::Initalize();
+		// Under linux platform.
+		ResetConsole();
+	}
+
+	const set<key_id> ExtendedKeys = { 27 };
+
+	struct keyboard_state {
+		// = get a keyboard state
+		key_id PrimaryKey, ExtendedKey = 0;
+		// If first one is Extended Key: Primary Key = Next Keycode, Extended Key = Extended (First) one
+
+		keyboard_state(key_id PrimaryKey = 0, key_id ExtendedKey = 0) : PrimaryKey(PrimaryKey), ExtendedKey(ExtendedKey) {
+
+		}
+
+		// Get comparable key: Put Extended key into higher place
+		operator key_id() {
+			return (ExtendedKey << 8) | PrimaryKey;
+		}
+	};
+
+	keyboard_state GetKeyboard() {
+		keyboard_state k;
+		key_id g = getch();
+		if (ExtendedKeys.count(g)) {
+			getch();					// For '['
+			k.ExtendedKey = g;
+			k.PrimaryKey = getch();
+		}
+		else {
+			k.PrimaryKey = g;
+		}
+		return k;
+	}
+#endif
 };

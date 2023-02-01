@@ -12,12 +12,23 @@ namespace scg {
 
 	constexpr console_size tab_size = 4;
 
+	// For liunx:
+	const int escape_key = 27;
+	const int delete_key = 127;
+	const int enter_key = 10;
+
 	// Now sets keys for operations.
 	// For keycode: https://www.cnblogs.com/lxwphp/p/9548823.html
-	const key_id switch_windows = 9;				// tab
+	const key_id switch_windows = 9;					// tab
+#if defined(_WIN32)
 	const key_id go_prev_control = MakeKeyID(75, 224);	// left key
 	const key_id go_next_control = MakeKeyID(77, 224);	// right key
-	const key_id active_button = 13;				// enter
+	const key_id active_button = 13;					// enter
+#else
+	const key_id go_prev_control = MakeKeyID(68, escape_key);	// left key
+	const key_id go_next_control = MakeKeyID(67, escape_key);	// right key
+	const key_id active_button = enter_key;				// enter
+#endif
 	const key_id active_checkbox = active_button;
 
 	// Now sets colors.

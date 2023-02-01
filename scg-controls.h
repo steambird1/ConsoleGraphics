@@ -364,6 +364,7 @@ namespace scg {
 		void BarClean() {
 			for (console_pos i = 0; i < width; i++) mc_area[height - 1][i] = spixel(' ', 0);
 		}
+#if defined(_WIN32)
 		string BarInput(string PromptText, pixel_color Style, int BufferSize = 2048) {
 			ClearPrompt(Style);
 			console_pos ptr = 0;
@@ -381,6 +382,28 @@ namespace scg {
 			GetClientArea().Draw();
 			return s;
 		}
+#else
+		// WARNING: DEPRECATED UNDER LINUX
+		string BarInput(string PromptText, pixel_color Style, int BufferSize = 2048, bool UseNormalMode = true) {
+			ClearPrompt(Style);
+			console_pos ptr = 0;
+			for (auto &i : PromptText) {
+				mc_area[height - 1][ptr++] = i;
+			}
+			GetClientArea().Draw();
+			// After this: move cursor and listen!
+			MoveAbsoluteCursor(coords(height - 1, ptr));
+			char *s = new char[BufferSize];
+			if (UseNormalMode) LinuxGetchSupporter::ResetConsoleSettings();
+			SetCursorDisplay(display_show, display_enable);
+			fgets(s, BufferSize - 1, stdin);
+			if (UseNormalMode) LinuxGetchSupporter::ApplySCGSettings();
+			SetCursorDisplay(display_show, display_disable);
+			BarClean();
+			GetClientArea().Draw();
+			return s;
+		}
+#endif
 		// Call this after all of work
 		void MainLoop() {
 			try {

@@ -8,12 +8,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
-#include <conio.h>
 using namespace std;
-
-// ISO C/C++ standards
-#define getch _getch
-#define kbhit _kbhit
 
 /*
 All in all: Handling graphics' command:

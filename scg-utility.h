@@ -1,7 +1,9 @@
 #pragma once
 #include <exception>
 #include <functional>
+#if defined(_WIN32)
 #include <Windows.h>
+#endif
 #include <map>
 #include <vector>
 using namespace std;
@@ -14,11 +16,15 @@ namespace scg {
 	using key_id = int;
 	using symboller = unsigned long long;
 
-
+#if defined(_WIN32)
 	using win_handle = HANDLE;
 	using win_uint = DWORD;
 	using win_bool = BOOL;
-
+#else
+	using win_handle = void*;
+	using win_uint = unsigned long;
+	using win_bool = int;
+#endif
 	using pixel_color = int;
 
 #if _DEBUG

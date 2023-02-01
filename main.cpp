@@ -48,14 +48,15 @@ int main() {
 	
 	m += control_set(&w, "Main", coords(3, 3));
 
-	window antw = window(5, 9);
+	window antw = window(8,8);
 	antw.Title = "Timer";
-	label lb = label("0", 1, 8);
+	label lb = label("0", 1, 5);
 	long long counter = 0;
 	timer t = timer(1000);
 	t.ToCall += [&](event_args e) {
 		counter++;
 		lb.Text = to_string(counter);
+		//m.BarPrompt(string("Timer: ") + to_string(counter), pixel_colors::Generate(text_black + text_background, text_white + text_intensity + text_foreground));
 	};
 	
 	antw += control_set(&lb, "Label2", coords(1, 1));

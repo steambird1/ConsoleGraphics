@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <thread>
+#include <mutex>
 #include <conio.h>
 using namespace std;
 
@@ -145,7 +146,15 @@ namespace scg {
 		// Warning: in AfterDraw the display will be not updated!
 		event<event_args> AfterDraw;	// After drawing (mostly for input box)
 
-		bool HasChanges = true;	// For initial loader
+		//bool HasChanges = true;	// For initial loader
+		property<bool> HasChanges = property<bool>(
+			[this](bool &tmp) -> bool {
+			return IHasChanges;
+		},
+			[this](bool sets, bool &tmp) {
+			IHasChanges = sets;
+		}
+			);
 		bool Enabled = true;	// true if can be selected
 		// true if the control can be shown
 		property<bool> Visible = property<bool>(
@@ -185,9 +194,11 @@ namespace scg {
 
 		coords my_coords;
 
-		// Unused now
+		// Unused now:
 		bool IProcessActive = false;
+
 		bool IVisible = true;
+		bool IHasChanges = true;
 
 		virtual bool CurrentActivationAvailable() {
 			return sub_controls.size() && (current_active != sub_controls.end());
@@ -314,7 +325,10 @@ namespace scg {
 			this->IProcessActive = true;
 		}
 		virtual client_area& GetClientArea() {
+			// Must be locked
+			render_lock.lock();
 			UpdateSubControls(&mc_area, true);
+			render_lock.unlock();
 			return mc_area;
 		}
 		void MasterRender() {
@@ -400,6 +414,7 @@ namespace scg {
 		}
 		// Buffered
 		client_area mc_area;
+		mutex render_lock;
 	};
 
 
@@ -559,7 +574,6 @@ namespace scg {
 			}
 			HasChanges = true;
 		});
-
 
 	protected:
 		
@@ -1182,9 +1196,15 @@ namespace scg {
 	class timer : public invisible_control {
 
 	public:
+
+		class ignition_failure_exception : public exception {
+		public:
+			using exception::exception;
+		};
+
 		void RunMe() {
 			this->ToCall.RunEvent(event_args());
-			if (this->my_master != nullptr) {
+			if ((!NoRendering) && this->my_master != nullptr) {
 				this->my_master->MasterRender();
 			}
 		}
@@ -1195,11 +1215,19 @@ namespace scg {
 			}
 			this->my_master = to_be;
 			this->my_thr = thread([this]() {
-				if (this->Enabled) {
-					RunMe();
+				while (true) {
+					if (this->Enabled) {
+						RunMe();
+					}
+					this_thread::sleep_for(chrono::milliseconds(this->Interval));
 				}
-				this_thread::sleep_for(chrono::milliseconds(this->Interval));
 			});
+			if (this->my_thr.joinable()) {
+				this->my_thr.detach();
+			}
+			else {
+				throw ignition_failure_exception();
+			}
 			
 		}
 
@@ -1210,6 +1238,7 @@ namespace scg {
 			};
 		}
 
+		bool NoRendering = false;
 		event<event_args> ToCall;
 		bool Enabled;
 		int Interval;

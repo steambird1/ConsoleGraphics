@@ -2,6 +2,8 @@
 #include "scg-utility.h"
 #include "scg-console.h"
 #include "scg-settings.h"
+#include <mutex>
+using namespace std;
 
 namespace scg {
 
@@ -87,7 +89,8 @@ namespace scg {
 		}
 
 		// Must move to specified place first.
-		void Draw(bool InvaildateAll = false, bool NoChanging = false) {
+		void Draw(bool InvaildateAll = false, bool NoChanging = false, bool IgnoreLock = false) {
+			if (!IgnoreLock) client_area::output_lock.lock();
 			SaveCursorPos();
 			for (console_pos i = 0; i < SizeH; i++) {
 				for (console_pos j = 0; j < SizeW; j++) {
@@ -100,6 +103,7 @@ namespace scg {
 				}
 			}
 			RestoreCursorPos();
+			if (!IgnoreLock) client_area::output_lock.unlock();
 		}
 
 		void Fillup(pixel PixelData) {
@@ -126,7 +130,7 @@ namespace scg {
 			return data;
 		}
 
-		pixel* operator [] (console_pos Line) {
+		array_2d<pixel>::__array_helper operator [] (console_pos Line) {
 			return data[Line];
 		}
 
@@ -134,8 +138,10 @@ namespace scg {
 
 	private:
 		//...
+		static mutex output_lock;
 
 	};
+	mutex client_area::output_lock;
 
 	using spixel = client_area::pixel;
 

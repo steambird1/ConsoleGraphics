@@ -3,6 +3,7 @@
 #include <functional>
 #include <Windows.h>
 #include <map>
+#include <vector>
 using namespace std;
 
 namespace scg {
@@ -19,6 +20,15 @@ namespace scg {
 	using win_bool = BOOL;
 
 	using pixel_color = int;
+
+#if _DEBUG
+
+	void noper() {
+		// No operation for this function.
+		1 + 1;
+	}
+
+#endif
 
 	struct coords {
 
@@ -79,19 +89,37 @@ namespace scg {
 	class array_2d {
 	public:
 
+		class __array_helper {
+		public:
+
+			__array_helper(vector<data_type> &ar, array_size start) : ar(ar), start(start) {
+
+			}
+
+			data_type& operator [] (array_size Pos) {
+				return ar[start + Pos];
+			}
+
+		private:
+			vector<data_type> &ar;
+			array_size start;
+		};
+
 		array_2d(array_size Size1D, array_size Size2D) {
 			this->Size1D.fdata = Size1D;
 			this->Size2D.fdata = Size2D;
-			ar = new data_type[Size1D * Size2D];
+			//ar = new data_type[Size1D * Size2D];
+			ar.resize(Size1D * Size2D);
 		}
 
 		void Release() {
-			delete[] ar;
+			ar.resize(0);
 			Size1D = Size2D = 0;
 		}
 
-		data_type* operator[] (array_size Pos) {
-			return ar + (Pos*Size2D);
+		__array_helper operator[] (array_size Pos) {
+			//return ar + (Pos*Size2D);
+			return __array_helper(this->ar, Pos*Size2D);
 		}
 
 		void FillWith(data_type Data) {
@@ -111,8 +139,8 @@ namespace scg {
 		});
 
 	private:
-
-		data_type *ar;
+		vector<data_type> ar;
+		//data_type *ar;
 	};
 
 	class event_args {

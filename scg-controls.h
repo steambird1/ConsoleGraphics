@@ -36,6 +36,16 @@ namespace scg {
 		master *MasterPointer;
 	};
 
+	class resize_event_args : public event_args {
+	public:
+
+		resize_event_args(console_size NewHeight = 0u, console_size NewWidth = 0u) : NewHeight(NewHeight), NewWidth(NewWidth) {
+
+		}
+
+		console_size NewHeight, NewWidth;
+	};
+
 	/*
 	This is a pure virtual (abstract) class, which means you can't create
 	object from it -- You should inherit it.
@@ -103,13 +113,20 @@ namespace scg {
 			auto &origin = sub_controls[ControlToMove];
 			auto &orect = origin.MyControl().GetClientArea();
 			auto &self_area = this->GetClientArea();
-			for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
-				for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
-					self_area[i][j] = spixel(' ', my_background);
-				}
-			}
+			ClearControlArea(ControlToMove);
 			origin.pos = MoveTarget;
 			origin.MyControl().my_coords = MoveTarget;
+			origin.MyControl().HasChanges = true;
+			origin.MyControl().OnMove.RunEvent(event_args());
+			UpdateSubControls(&self_area, false, true);
+		}
+		virtual void ResizeControl(control_symbol ControlToMove, console_size NewHeight, console_size NewWidth) {
+			if (!sub_controls.count(ControlToMove)) return;
+			auto &origin = sub_controls[ControlToMove];
+			auto &orect = origin.MyControl().GetClientArea();
+			auto &self_area = this->GetClientArea();
+			ClearControlArea(ControlToMove);
+			origin.MyControl().OnResize.RunEvent(resize_event_args(NewHeight, NewWidth));
 			origin.MyControl().HasChanges = true;
 			UpdateSubControls(&self_area, false, true);
 		}
@@ -149,6 +166,8 @@ namespace scg {
 		event<event_args> LostFocus;
 		event<event_args> GotFocus;
 		event<pre_render_event_args> PreRender;	// Call at the first render
+		event<event_args> OnMove;
+		event<resize_event_args> OnResize;
 		// Warning: in AfterDraw the display will be not updated!
 		event<event_args> AfterDraw;	// After drawing (mostly for input box)
 
@@ -192,6 +211,18 @@ namespace scg {
 			);
 
 	protected:
+
+		// Will not validate
+		virtual void ClearControlArea(control_symbol ControlToMove) {
+			auto &origin = sub_controls[ControlToMove];
+			auto &orect = origin.MyControl().GetClientArea();
+			auto &self_area = this->GetClientArea();
+			for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
+				for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
+					self_area[i][j] = spixel(' ', my_background);
+				}
+			}
+		}
 
 		coords GetBaseCoords() {
 			if (father == nullptr) return my_coords;
@@ -454,24 +485,37 @@ namespace scg {
 			mc_area.Fillup(spixel(' ', background_window));
 			// For title bar
 			// Default LostFocus Drawer
+			this->CurrentStyle = inactive_window;
 			PreRender += [this](pre_render_event_args e) {
 				this->my_master = e.MasterPointer;
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
+				DrawBar(inactive_window);
 				// Send DOWN PreRender()
 				for (auto &i : sub_controls) {
 					i.second.MyControl().PreRender.RunEvent(pre_render_event_args(this->my_master));
 				}
 				HasChanges = true;
 			};
+			OnResize += [this](resize_event_args e) {
+				// Window don't invalidate its area!
+				mc_area.Resize(e.NewHeight, e.NewWidth);
+				//this->Width.fdata = e.NewWidth;
+				//this->Height.fdata = e.NewHeight;
+				mc_area.Fillup(client_area::pixel(' ', my_background));
+				DrawBar(this->CurrentStyle);
+				this->UpdateTitle(this->Title);
+				HasChanges = true;
+			};
 			LostFocus += [this](event_args e) {
 				// Set window title bar to inactive state
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = inactive_window;
+				this->CurrentStyle = inactive_window;
+				DrawBar(inactive_window);
 				HasChanges = true;
 			};
 			// Default GotFocus Drawer
 			GotFocus += [this](event_args e) {
 				// Set window title bar to active state
-				for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = active_window;
+				this->CurrentStyle = active_window;
+				DrawBar(active_window);
 				HasChanges = true;
 			};
 			AfterDraw += [this](event_args e) {
@@ -512,14 +556,25 @@ namespace scg {
 		property<string> Title = property<string>([this](string &tmp) -> string {
 			return tmp;
 		}, [this](string sets, string &tmp) {
-			if (mc_area.SizeW - 1 <= sets.length()) return;
-			for (size_t i = 0; i < sets.length(); i++) mc_area[0][i] = sets[i];
 			tmp = sets;
-			HasChanges = true;
+			UpdateTitle(sets);
 			// Draw title bar
 		});
 		
 	private:
+
+		void DrawBar(pixel_color Color) {
+			for (console_size i = 0; i < mc_area.SizeW; i++) mc_area[0][i].color_info = Color;
+		}
+
+		void UpdateTitle(string TitleText) {
+			if (mc_area.SizeW - 1 <= TitleText.length()) return;
+			for (size_t i = 0; i < TitleText.length(); i++) mc_area[0][i] = TitleText[i];
+			HasChanges = true;
+		}
+
+		pixel_color CurrentStyle;
+
 		client_area mc_area;
 		master *my_master;
 	};
@@ -538,6 +593,13 @@ namespace scg {
 			this->Text = Text;
 			this->PreRender += [this](event_args e) {
 				this->Enabled = false;
+			};
+			this->OnResize += [this](resize_event_args e) {
+				mc_area.Resize(e.NewHeight, e.NewWidth);
+				this->Width.fdata = e.NewWidth;
+				this->Height.fdata = e.NewHeight;
+				mc_area.Fillup(client_area::pixel(' ', my_background));
+				this->RedrawText();
 			};
 		}
 
@@ -681,13 +743,23 @@ namespace scg {
 			LostFocus += [this](event_args e) {
 				// Set window title bar to inactive state
 				HaveGotFocus = false;
+				this->CurrentStyle = inactived_button;
 				this->DrawBar(inactived_button);
 			};
 			// Default GotFocus Drawer
 			GotFocus += [this](event_args e) {
 				// Set window title bar to active state
 				HaveGotFocus = true;
+				this->CurrentStyle = actived_button;
 				this->DrawBar(actived_button);
+			};
+			OnResize += [this](resize_event_args e) {
+				mc_area.Resize(e.NewHeight, e.NewWidth);
+				this->Width.fdata = e.NewWidth;
+				this->Height.fdata = e.NewHeight;
+				mc_area.Fillup(client_area::pixel(' ', my_background));
+				RedrawText();
+				DrawBar(CurrentStyle);
 			};
 		}
 
@@ -751,6 +823,7 @@ namespace scg {
 					mc_area[i][j].color_info = sets;
 				}
 			}
+			this->CurrentStyle = sets;
 			HasChanges = true;
 		});
 
@@ -761,13 +834,16 @@ namespace scg {
 			if (sets) {
 				if (HaveGotFocus) {
 					this->DrawBar(actived_button);
+					this->CurrentStyle = actived_button;
 				}
 				else {
 					this->DrawBar(inactived_button);
+					this->CurrentStyle = inactived_button;
 				}
 			}
 			else {
 				this->DrawBar(deactived_button);
+				this->CurrentStyle = deactived_button;
 			}
 		});
 
@@ -776,6 +852,7 @@ namespace scg {
 	protected:
 
 		bool HaveGotFocus = false;
+		pixel_color CurrentStyle = inactived_button;
 
 		void DrawBar(pixel_color BarColor) {
 			for (console_size i = 0; i < mc_area.SizeH; i++) {
@@ -834,6 +911,14 @@ namespace scg {
 			this->AfterDraw += [this](event_args e) {
 				MoveAbsoluteCursor(GetBaseCoords() + coords(MyCurrentX, MyCurrentY));
 			};
+			this->OnResize += [this](resize_event_args e) {
+				mc_area.Resize(e.NewHeight, e.NewWidth);
+				this->Width.fdata = e.NewWidth;
+				this->Height.fdata = e.NewHeight;
+				mc_area.Fillup(client_area::pixel(' ', my_background));
+				this->DrawBar();
+				this->RedrawText();
+			};
 		}
 
 		virtual client_area& GetClientArea() {
@@ -847,7 +932,7 @@ namespace scg {
 				// Acceptable input ...
 				this->Text = this->Text.GetValue() + char(KeyInfo.PrimaryKey);
 			}
-			else if (KeyInfo.PrimaryKey == 8) {
+			else if (KeyInfo.PrimaryKey == delete_key) {
 				// Delete ...
 				string s = this->Text.GetValue();
 				if (s.length())
@@ -910,18 +995,23 @@ namespace scg {
 			return buf;
 		}, [this](pixel_color sets, pixel_color &buf) {
 			buf = sets;
-			console_size MyHeight = Height, MyWidth = Width;
-			for (console_pos i = 0; i < MyHeight; i++) {
-				for (console_pos j = 0; j < MyWidth; j++) {
-					mc_area[i][j].color_info = sets;
-				}
-			}
+			DrawBar();
 			HasChanges = true;
 		});
 
 		event<event_args> OnChange;
 
 	protected:
+
+		void DrawBar() {
+			console_size MyHeight = Height, MyWidth = Width;
+			for (console_pos i = 0; i < MyHeight; i++) {
+				for (console_pos j = 0; j < MyWidth; j++) {
+					mc_area[i][j].color_info = this->Style.fdata;
+				}
+			}
+			HasChanges = true;
+		}
 
 		void InvalidateText() {
 			string TextData = this->Text;
@@ -1010,17 +1100,28 @@ namespace scg {
 			PreRender += [this](event_args e) {
 				this->Enabled = true;
 				this->DrawBar(inactived_button);
+				CurrentStyle = inactived_button;
 			};
 			LostFocus += [this](event_args e) {
 				// Set window title bar to inactive state
 				HaveGotFocus = false;
 				this->DrawBar(inactived_button);
+				CurrentStyle = inactived_button;
 			};
 			// Default GotFocus Drawer
 			GotFocus += [this](event_args e) {
 				// Set window title bar to active state
 				HaveGotFocus = true;
 				this->DrawBar(actived_button);
+				CurrentStyle = actived_button;
+			};
+			OnResize += [this](resize_event_args e) {
+				mc_area.Resize(e.NewHeight, e.NewWidth);
+				this->Width.fdata = e.NewWidth;
+				this->Height.fdata = e.NewHeight;
+				mc_area.Fillup(client_area::pixel(' ', my_background));
+				this->DrawStatus(this->IsChecked);
+				this->DrawBar(this->CurrentStyle);
 			};
 		}
 
@@ -1086,6 +1187,7 @@ namespace scg {
 					mc_area[i][j].color_info = sets;
 				}
 			}
+			CurrentStyle = sets;
 			HasChanges = true;
 		});
 
@@ -1125,6 +1227,8 @@ namespace scg {
 		radio_group *RadioGroup = nullptr;
 
 		bool HaveGotFocus = false;
+
+		pixel_color CurrentStyle;
 
 		void DrawBar(pixel_color BarColor) {
 			for (console_size i = 0; i < mc_area.SizeH; i++) {

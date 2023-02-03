@@ -15,7 +15,7 @@ int main() {
 	checkbox c = checkbox("Example", 1, 12, false, &ch);
 	checkbox d = checkbox("Another", 1, 12, true, &ch);
 
-	button l = button("Test", 1, 7);
+	button l = button("Test", 1, 4);
 	input ip = input(5, 5);
 
 	l.OnClick += [&](event_args e) {
@@ -26,11 +26,12 @@ int main() {
 		if (c.IsChecked) {
 			m.BarPrompt("Example is checked", pixel_colors::Generate(text_blue + text_background, text_white + text_intensity + text_foreground));
 			l.Text = "HeyGuy";
-			l.Visible = true;
+			w.ResizeControl("Label1", 1, 6);
+			l.IsActived = true;
 		}
 		else {
 			m.BarClean();
-			l.Visible = false;
+			l.IsActived = false;
 		}
 	};
 

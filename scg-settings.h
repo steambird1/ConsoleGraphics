@@ -14,7 +14,11 @@ namespace scg {
 
 	// For liunx:
 	const int escape_key = 27;
+#if defined(_WIN32)
+	const int delete_key = 8;
+#else
 	const int delete_key = 127;
+#endif
 	const int enter_key = 10;
 
 	// Now sets keys for operations.

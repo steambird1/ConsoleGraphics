@@ -110,6 +110,10 @@ namespace scg {
 			data.FillWith(PixelData);
 		}
 
+		void Resize(console_size NewHeight, console_size NewWidth) {
+			data.Allocate(NewHeight, NewWidth);
+		}
+
 		property<console_pos> SizeH = property<console_pos>(
 			[this](console_pos &reserved) -> console_pos {
 			return data.Size1D;

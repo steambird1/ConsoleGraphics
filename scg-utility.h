@@ -113,42 +113,94 @@ namespace scg {
 	class array_2d {
 	public:
 
+#if __cplusplus >= 201700L
+		static_assert(is_default_constructible<data_type>::value);
+		static_assert(is_copy_constructible<data_type>::value);
+#endif
+
+		using __internal_data = vector<data_type>;
+#if _DEBUG
+		// Will check array's out-of-range exception
 		class __array_helper {
 		public:
-
-			__array_helper(vector<data_type> &ar, array_size start) : ar(ar), start(start) {
+			__array_helper(__internal_data &ind) : ind(ind) {
 
 			}
-
 			data_type& operator [] (array_size Pos) {
-				return ar[start + Pos];
+				return ind.at(Pos);
 			}
-
 		private:
-			vector<data_type> &ar;
-			array_size start;
+			__internal_data &ind;
 		};
+#else
+		using __array_helper = __internal_data & ;
+#endif
+		using array_internal = __array_helper;
 
-		array_2d(array_size Size1D, array_size Size2D) {
+		// Will only allocate new parts ...
+		void Allocate(array_size Size1D, array_size Size2D) {
+			array_size Origin1D = this->Size1D.fdata, Origin2D = this->Size2D.fdata;
 			this->Size1D.fdata = Size1D;
 			this->Size2D.fdata = Size2D;
-			//ar = new data_type[Size1D * Size2D];
-			ar.resize(Size1D * Size2D);
+			/*
+			This map shows origin area and extra area.
+
+			 +----------+-----+
+			 | Origin   | E1  |
+			 |          |     |
+			 +----------+-----+
+			 |   E2     | E3  |
+			 +----------+-----+
+			*/
+			// E1
+			for (array_size i = 0; i < Origin1D; i++) {
+				for (array_size j = Origin2D; j < max(Size2D, Origin2D); j++) {
+					ar[i].push_back(data_type());
+				}
+			}
+
+			// E2+E3
+			for (array_size i = Origin1D; i < max(Size1D, Origin1D); i++) {
+				ar.push_back(vector<data_type>());
+				for (array_size j = 0; j < max(Size2D, Origin2D); j++) {
+					ar[i].push_back(data_type());
+				}
+			}
 		}
 
+		array_2d(array_size Size1D, array_size Size2D) {
+			Allocate(Size1D, Size2D);
+			/*
+			// For debug propose only, test if a big size can satisfy it
+			for (array_size i = 0; i < 100; i++) {
+				ar.push_back(__internal_data());
+				for (array_size j = 0; j < 100; j++)
+					ar[i].push_back(data_type());
+			}
+			*/
+		}
+
+		// Not recommended
 		void Release() {
-			ar.resize(0);
-			Size1D = Size2D = 0;
+			ar.clear();
+			ar.shrink_to_fit();
+			Size1D = 0;
+			Size2D = 0;
 		}
 
 		__array_helper operator[] (array_size Pos) {
 			//return ar + (Pos*Size2D);
-			return __array_helper(this->ar, Pos*Size2D);
+			if (Pos >= ar.size() || Pos < 0) {
+				throw scg_exception("Position out of range");
+			}
+			return ar.at(Pos);
 		}
 
 		void FillWith(data_type Data) {
-			for (size_t i = 0; i < Size1D * Size2D; i++) {
-				ar[i] = Data;
+			for (array_size i = 0; i < Size1D; i++) {
+				for (array_size j = 0; j < Size2D; j++) {
+					ar[i][j] = Data;
+				}
 			}
 		}
 
@@ -163,9 +215,10 @@ namespace scg {
 		});
 
 	private:
-		vector<data_type> ar;
+		vector<__internal_data> ar;	// ar[1D][2D]
 		//data_type *ar;
 	};
+
 
 	class event_args {
 	public:

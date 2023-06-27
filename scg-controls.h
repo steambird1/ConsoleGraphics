@@ -39,11 +39,11 @@ namespace scg {
 	class resize_event_args : public event_args {
 	public:
 
-		resize_event_args(console_size NewHeight = 0u, console_size NewWidth = 0u) : NewHeight(NewHeight), NewWidth(NewWidth) {
+		resize_event_args(console_size *NewHeight = nullptr, console_size *NewWidth = nullptr) : NewHeight(NewHeight), NewWidth(NewWidth) {
 
 		}
 
-		console_size NewHeight, NewWidth;
+		console_size *NewHeight, *NewWidth;
 	};
 
 	/*
@@ -126,7 +126,7 @@ namespace scg {
 			auto &orect = origin.MyControl().GetClientArea();
 			auto &self_area = this->GetClientArea();
 			ClearControlArea(ControlToMove);
-			origin.MyControl().OnResize.RunEvent(resize_event_args(NewHeight, NewWidth));
+			origin.MyControl().OnResize.RunEvent(resize_event_args(&NewHeight, &NewWidth));
 			origin.MyControl().HasChanges = true;
 			UpdateSubControls(&self_area, false, true);
 		}
@@ -497,7 +497,7 @@ namespace scg {
 			};
 			OnResize += [this](resize_event_args e) {
 				// Window don't invalidate its area!
-				mc_area.Resize(e.NewHeight, e.NewWidth);
+				mc_area.Resize(*e.NewHeight, *e.NewWidth);
 				//this->Width.fdata = e.NewWidth;
 				//this->Height.fdata = e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background));
@@ -595,9 +595,9 @@ namespace scg {
 				this->Enabled = false;
 			};
 			this->OnResize += [this](resize_event_args e) {
-				mc_area.Resize(e.NewHeight, e.NewWidth);
-				this->Width.fdata = e.NewWidth;
-				this->Height.fdata = e.NewHeight;
+				mc_area.Resize(*e.NewHeight, *e.NewWidth);
+				this->Width.fdata = *e.NewWidth;
+				this->Height.fdata = *e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background));
 				this->RedrawText();
 			};
@@ -754,9 +754,9 @@ namespace scg {
 				this->DrawBar(actived_button);
 			};
 			OnResize += [this](resize_event_args e) {
-				mc_area.Resize(e.NewHeight, e.NewWidth);
-				this->Width.fdata = e.NewWidth;
-				this->Height.fdata = e.NewHeight;
+				mc_area.Resize(*e.NewHeight, *e.NewWidth);
+				this->Width.fdata = *e.NewWidth;
+				this->Height.fdata = *e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background));
 				RedrawText();
 				DrawBar(CurrentStyle);
@@ -912,9 +912,9 @@ namespace scg {
 				MoveAbsoluteCursor(GetBaseCoords() + coords(MyCurrentX, MyCurrentY));
 			};
 			this->OnResize += [this](resize_event_args e) {
-				mc_area.Resize(e.NewHeight, e.NewWidth);
-				this->Width.fdata = e.NewWidth;
-				this->Height.fdata = e.NewHeight;
+				mc_area.Resize(*e.NewHeight, *e.NewWidth);
+				this->Width.fdata = *e.NewWidth;
+				this->Height.fdata = *e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background));
 				this->DrawBar();
 				this->RedrawText();
@@ -1116,9 +1116,9 @@ namespace scg {
 				CurrentStyle = actived_button;
 			};
 			OnResize += [this](resize_event_args e) {
-				mc_area.Resize(e.NewHeight, e.NewWidth);
-				this->Width.fdata = e.NewWidth;
-				this->Height.fdata = e.NewHeight;
+				mc_area.Resize(*e.NewHeight, *e.NewWidth);
+				this->Width.fdata = *e.NewWidth;
+				this->Height.fdata = *e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background));
 				this->DrawStatus(this->IsChecked);
 				this->DrawBar(this->CurrentStyle);

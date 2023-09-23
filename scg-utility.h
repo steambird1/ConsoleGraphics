@@ -127,6 +127,9 @@ namespace scg {
 
 			}
 			data_type& operator [] (array_size Pos) {
+				if (Pos >= ind.size()) {
+					throw scg_exception("Debug error: Out of range");
+				}
 				return ind.at(Pos);
 			}
 		private:

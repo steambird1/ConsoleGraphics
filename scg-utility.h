@@ -123,17 +123,18 @@ namespace scg {
 		// Will check array's out-of-range exception
 		class __array_helper {
 		public:
-			__array_helper(__internal_data &ind) : ind(ind) {
+			__array_helper(__internal_data &ind, array_size Size2D) : Size2D(Size2D), ind(ind) {
 
 			}
 			data_type& operator [] (array_size Pos) {
-				if (Pos >= ind.size()) {
+				if (Pos >= Size2D) {
 					throw scg_exception("Debug error: Out of range");
 				}
 				return ind.at(Pos);
 			}
 		private:
 			__internal_data &ind;
+			array_size Size2D;
 		};
 #else
 		using __array_helper = __internal_data & ;
@@ -193,10 +194,10 @@ namespace scg {
 
 		__array_helper operator[] (array_size Pos) {
 			//return ar + (Pos*Size2D);
-			if (Pos >= ar.size() || Pos < 0) {
+			if (Pos >= Size1D || Pos < 0) {
 				throw scg_exception("Position out of range");
 			}
-			return ar.at(Pos);
+			return __array_helper(ar.at(Pos), Size2D);
 		}
 
 		void FillWith(data_type Data) {

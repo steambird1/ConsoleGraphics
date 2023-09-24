@@ -762,6 +762,7 @@ namespace scg {
 				this->Width.fdata = e.NewWidth;
 				this->Height.fdata = e.NewHeight;
 				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
+				InvalidateText();
 				RedrawText();
 				DrawBar(CurrentStyle);
 			};
@@ -797,6 +798,7 @@ namespace scg {
 		property<console_size> Height = property<console_size>([this](console_size &buf) -> console_size {
 			return buf;
 		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		}
@@ -805,6 +807,7 @@ namespace scg {
 		property<console_size> Width = property<console_size>([this](console_size &buf) -> console_size {
 			return buf;
 		}, [this](console_size sets, console_size &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		}
@@ -813,6 +816,7 @@ namespace scg {
 		property<string> Text = property<string>([this](string &buf) -> string {
 			return buf;
 		}, [this](string sets, string &buf) {
+			InvalidateText();
 			buf = sets;
 			RedrawText();
 		});
@@ -864,6 +868,32 @@ namespace scg {
 					auto &m = mc_area[i][j];
 					m.color_info = BarColor;
 				}
+			}
+			HasChanges = true;
+		}
+
+		void InvalidateText() {
+			string TextData = this->Text;
+			console_size MyHeight = Height, MyWidth = Width;
+			console_pos CurrentX = 0, CurrentY = 0;	// X: linear pos, Y: wide pos.
+			for (auto &i : TextData) {
+				if (i == '\n') {
+					CurrentX++;
+					continue;
+				}
+				if (i == '\t') {
+					CurrentY += tab_size;
+					continue;
+				}
+				if (CurrentY == MyWidth) {
+					CurrentX++;
+					CurrentY = 0;
+				}
+				if (CurrentX >= MyHeight) {
+					break;	// Break the rest
+				}
+				mc_area[CurrentX][CurrentY] = ' ';
+				CurrentY++;
 			}
 			HasChanges = true;
 		}

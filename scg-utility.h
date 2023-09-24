@@ -184,6 +184,12 @@ namespace scg {
 			*/
 		}
 
+		array_2d(const array_2d &other) {
+			this->ar = other.ar;
+			this->Size1D.fdata = other.Size1D.fdata;
+			this->Size2D.fdata = other.Size2D.fdata;
+		}
+
 		// Not recommended
 		void Release() {
 			ar.clear();
@@ -197,13 +203,17 @@ namespace scg {
 			if (Pos >= Size1D || Pos < 0) {
 				throw scg_exception("Position out of range");
 			}
+#ifdef _DEBUG
 			return __array_helper(ar.at(Pos), Size2D);
+#else
+			return ar.at(Pos);
+#endif
 		}
 
-		void FillWith(data_type Data) {
+		void FillWith(const data_type &Data) {
 			for (array_size i = 0; i < Size1D; i++) {
 				for (array_size j = 0; j < Size2D; j++) {
-					ar[i][j] = Data;
+					ar[i][j] = Data;	// ?
 				}
 			}
 		}
@@ -255,10 +265,14 @@ namespace scg {
 			return true;
 		}
 
-		void RunEvent(event_arg_type data) {
+		void RunEvent(event_arg_type data) const {
 			for (auto &i : event_map) {
 				i.second(data);
 			}
+		}
+
+		event(const event &other) : event_map(other.event_map), cid(other.cid) {
+
 		}
 
 	private:

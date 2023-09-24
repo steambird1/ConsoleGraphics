@@ -22,6 +22,13 @@ namespace scg {
 				transparent = Transparent;
 			}
 
+			pixel(const pixel &other) {
+				this->changed = true;
+				this->color_info.fdata = other.color_info.fdata;
+				this->data = other.data;
+				this->transparent = other.transparent;
+			}
+
 			void Display() {
 				// Before print all pixels
 				SetTextDisplay();
@@ -71,6 +78,11 @@ namespace scg {
 			
 		}
 
+		client_area(const client_area &other) : data(other.data) {
+			this->SizeH.fdata = other.SizeH.fdata;
+			this->SizeW.fdata = other.SizeW.fdata;
+		}
+
 		// Higher priority must merge later
 		void MergeWith(client_area Other, console_pos StartX = 0, console_pos StartY = 0) {
 			console_pos EndX = StartX + Other.SizeH;
@@ -106,7 +118,7 @@ namespace scg {
 			if (!IgnoreLock) client_area::output_lock.unlock();
 		}
 
-		void Fillup(pixel PixelData) {
+		void Fillup(const pixel& PixelData) {
 			data.FillWith(PixelData);
 		}
 

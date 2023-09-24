@@ -223,7 +223,7 @@ namespace scg {
 			auto &self_area = this->GetClientArea();
 			for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
 				for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
-					self_area[i][j] = spixel(' ', my_background);
+					self_area[i][j] = spixel(' ', my_background.color_info);
 				}
 			}
 		}
@@ -258,7 +258,7 @@ namespace scg {
 					auto &self_area = mc_area;
 					for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
 						for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
-							self_area[i][j] = spixel(' ', my_background);
+							self_area[i][j] = spixel(' ', my_background.color_info);
 						}
 					}
 					mc.HasChanges = false;
@@ -293,7 +293,7 @@ namespace scg {
 						auto &self_area = mc_area;
 						for (console_pos i = origin.pos.x; i < origin.pos.x + orect.SizeH; i++) {
 							for (console_pos j = origin.pos.y; j < origin.pos.y + orect.SizeW; j++) {
-								self_area[i][j] = spixel(' ', my_background);
+								self_area[i][j] = spixel(' ', my_background.color_info);
 							}
 						}
 					}
@@ -504,7 +504,7 @@ namespace scg {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
 				//this->Width.fdata = e.NewWidth;
 				//this->Height.fdata = e.NewHeight;
-				mc_area.Fillup(client_area::pixel(' ', my_background));
+				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
 				DrawBar(this->CurrentStyle);
 				this->UpdateTitle(this->Title);
 				HasChanges = true;
@@ -602,7 +602,7 @@ namespace scg {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
 				this->Width.fdata = e.NewWidth;
 				this->Height.fdata = e.NewHeight;
-				mc_area.Fillup(client_area::pixel(' ', my_background));
+				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
 				this->RedrawText();
 			};
 		}
@@ -761,7 +761,7 @@ namespace scg {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
 				this->Width.fdata = e.NewWidth;
 				this->Height.fdata = e.NewHeight;
-				mc_area.Fillup(client_area::pixel(' ', my_background));
+				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
 				RedrawText();
 				DrawBar(CurrentStyle);
 			};
@@ -919,7 +919,7 @@ namespace scg {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
 				this->Width.fdata = e.NewWidth;
 				this->Height.fdata = e.NewHeight;
-				mc_area.Fillup(client_area::pixel(' ', my_background));
+				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
 				this->DrawBar();
 				this->RedrawText();
 			};
@@ -1123,7 +1123,7 @@ namespace scg {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
 				this->Width.fdata = e.NewWidth;
 				this->Height.fdata = e.NewHeight;
-				mc_area.Fillup(client_area::pixel(' ', my_background));
+				mc_area.Fillup(client_area::pixel(' ', my_background.color_info));
 				this->DrawStatus(this->IsChecked);
 				this->DrawBar(this->CurrentStyle);
 			};

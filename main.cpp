@@ -25,7 +25,7 @@ int main() {
 	c.OnStatusChange += [&](event_args e) {
 		if (c.IsChecked) {
 			m.BarPrompt("Example is checked", pixel_colors::Generate(text_blue + text_background, text_white + text_intensity + text_foreground));
-			l.Text = "HeyGuy";
+			//l.Text = "HeyG";
 			w.ResizeControl("Label1", 1, 6);
 			l.IsActived = true;
 		}
@@ -37,6 +37,7 @@ int main() {
 
 	ip.OnChange += [&](event_args e) {
 		m.BarPrompt(string("Input: ") + ip.Text.GetValue(), pixel_colors::Generate(text_black + text_background, text_white + text_intensity + text_foreground, text_bold));
+		l.Text = ip.Text.GetValue();
 	};
 
 	w += control_set(&c, "Check1", coords(1, 1));
@@ -62,7 +63,7 @@ int main() {
 	
 	antw += control_set(&lb, "Label2", coords(1, 1));
 
-	m += control_set(&t, "Timer1", coords(1, 1));
+	//m += control_set(&t, "Timer1", coords(1, 1));
 	m += control_set(&antw, "Window2", coords(11, 12));
 
 	m.MainLoop();

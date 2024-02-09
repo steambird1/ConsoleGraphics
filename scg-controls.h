@@ -252,7 +252,7 @@ namespace scg {
 					if (i.first == current_active->first) continue;	// Draw active control at last
 				}
 				auto &mc = i.second.MyControl();
-				if (!mc.Visible) {
+				if ((!mc.Visible) && mc.HasChanges) {
 					auto &origin = i.second;
 					auto &orect = mc.GetClientArea();
 					auto &self_area = mc_area;
@@ -937,13 +937,15 @@ namespace scg {
 			this->Width = Width;
 			this->GotFocus += [this](event_args e) {
 				SetCursorDisplay(display_show, display_enable);
-				MoveAbsoluteCursor(my_coords);
+				MoveAbsoluteCursor(GetBaseCoords());
+				has_focus = true;
 			};
 			this->LostFocus += [this](event_args e) {
 				SetCursorDisplay(display_show, display_disable);
+				has_focus = false;
 			};
 			this->AfterDraw += [this](event_args e) {
-				MoveAbsoluteCursor(GetBaseCoords() + coords(MyCurrentX, MyCurrentY));
+				if (has_focus) MoveAbsoluteCursor(GetBaseCoords() + coords(MyCurrentX, MyCurrentY));
 			};
 			this->OnResize += [this](resize_event_args e) {
 				mc_area.Resize(e.NewHeight, e.NewWidth);
@@ -1106,6 +1108,7 @@ namespace scg {
 		}
 
 		client_area mc_area;
+		bool has_focus = false;
 	};
 
 	// Including both radio and multiple checkbox.

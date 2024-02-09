@@ -18,10 +18,6 @@ int main() {
 	button l = button("Test", 1, 4);
 	input ip = input(5, 5);
 
-	l.OnClick += [&](event_args e) {
-		m.BarPrompt("Button is clicked", pixel_colors::Generate(text_green + text_background, text_white + text_intensity + text_foreground));
-	};
-
 	c.OnStatusChange += [&](event_args e) {
 		if (c.IsChecked) {
 			m.BarPrompt("Example is checked", pixel_colors::Generate(text_blue + text_background, text_white + text_intensity + text_foreground));
@@ -60,8 +56,13 @@ int main() {
 		lb.Text = to_string(counter);
 		//m.BarPrompt(string("Timer: ") + to_string(counter), pixel_colors::Generate(text_black + text_background, text_white + text_intensity + text_foreground));
 	};
-	
 	antw += control_set(&lb, "Label2", coords(1, 1));
+
+	l.OnClick += [&](event_args e) {
+		m.BarPrompt("Button is clicked", pixel_colors::Generate(text_green + text_background, text_white + text_intensity + text_foreground));
+		t.IgniteMe(&m);
+	};
+
 
 	//m += control_set(&t, "Timer1", coords(1, 1));
 	m += control_set(&antw, "Window2", coords(11, 12));

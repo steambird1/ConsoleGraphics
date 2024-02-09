@@ -342,7 +342,9 @@ namespace scg {
 			ResetConsole();
 			SetTextDisplay();
 			MoveAbsoluteCursor(coords(0, 0));
+#ifdef _WIN32
 			system("color 1f");
+#endif
 			printf("An critical error has occured and Console Graphics has been \n");
 			printf("shut down to protect your application.                      \n");
 			printf("                                                            \n");

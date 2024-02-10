@@ -707,6 +707,7 @@ namespace scg {
 			for (auto &i : TextData) {
 				if (i == '\n') {
 					CurrentX++;
+					CurrentY = 0;
 					continue;
 				}
 				if (i == '\t') {
@@ -907,6 +908,7 @@ namespace scg {
 			for (auto &i : TextData) {
 				if (i == '\n') {
 					CurrentX++;
+					CurrentY = 0;
 					continue;
 				}
 				if (i == '\t') {
@@ -1339,6 +1341,7 @@ namespace scg {
 			for (auto &i : TextData) {
 				if (i == '\n') {
 					CurrentX++;
+					CurrentY = 0;
 					continue;
 				}
 				if (i == '\t') {

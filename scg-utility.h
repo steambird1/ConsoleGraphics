@@ -81,6 +81,11 @@ namespace scg {
 	class property {
 	public:
 
+#if __cplusplus >= 201700L
+		static_assert(is_default_constructible<data_type>::value);
+		static_assert(is_copy_constructible<data_type>::value);
+#endif
+
 		using my_getter = function<data_type(field_type&)>;
 		using my_setter = function<void(data_type, field_type&)>;
 
@@ -102,7 +107,7 @@ namespace scg {
 			return getter(fdata);
 		}
 
-		field_type fdata;
+		field_type fdata = field_type();	// The used type must have a default constructor
 
 	private:
 		my_getter getter;
@@ -173,6 +178,8 @@ namespace scg {
 		}
 
 		array_2d(array_size Size1D, array_size Size2D) {
+			this->Size1D.fdata = 0;
+			this->Size2D.fdata = 0;
 			Allocate(Size1D, Size2D);
 			/*
 			// For debug propose only, test if a big size can satisfy it

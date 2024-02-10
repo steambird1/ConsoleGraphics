@@ -26,7 +26,7 @@ namespace scg {
 				this->changed = true;
 				this->color_info.fdata = other.color_info.fdata;
 				this->data = other.data;
-				this->transparent = other.transparent;
+				this->transparent.fdata = other.transparent.fdata;
 			}
 
 			void Display() {
